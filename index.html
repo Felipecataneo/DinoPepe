@@ -3,183 +3,173 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DinoPepe 🦖🌾</title>
-
-<!-- PWA -->
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#4caf50">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="DinoPepe">
+<title>DinoPepe 🦖</title>
 
 <style>
-* { box-sizing: border-box; }
-body {
+* {
     margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
     background: #87ceeb;
     font-family: monospace;
-    display: flex;
+    overflow: hidden;
+    text-align: center;
+}
+
+canvas {
+    background: linear-gradient(#87ceeb 65%, #7cfc00 65%);
+    display: block;
+    margin: 0 auto;
+}
+
+#ui {
+    position: fixed;
+    top: 10px;
+    width: 100%;
+    color: #333;
+    font-size: 16px;
+    z-index: 10;
+}
+
+#upload {
+    margin-top: 5px;
+}
+
+#gameOverScreen {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    display: none;
     flex-direction: column;
     align-items: center;
-    padding: 10px;
-    gap: 10px;
+    justify-content: center;
+    color: white;
+    z-index: 999;
 }
-canvas {
-    background: #c8facc;
-    border: 3px solid #4caf50;
-    border-radius: 12px;
-    touch-action: manipulation;
+
+#gameOverScreen h1 {
+    font-size: 3rem;
+    margin-bottom: 20px;
 }
-.ui {
-    text-align: center;
-    font-size: 14px;
-}
-.hidden { display: none; }
-button {
-    padding: 8px 14px;
-    font-family: monospace;
+
+#gameOverScreen button {
+    font-size: 2rem;
+    padding: 20px 40px;
+    border-radius: 20px;
     border: none;
     background: #4caf50;
     color: white;
-    border-radius: 6px;
-}
-.adult {
-    background: #555;
 }
 </style>
 </head>
 
 <body>
 
-<div class="ui" id="ui">
-    <strong>DinoPepe 🦖</strong><br>
-    Mova o celular para cima ou toque na tela<br><br>
-
-    <div id="photoSetup">
+<div id="ui">
+    <div>🦖 DinoPepe | Pule balançando o celular</div>
+    <div id="scoreText"></div>
+    <div id="upload">
         <input type="file" id="faceUpload" accept="image/*">
     </div>
-
-    <br>
-    <button id="motionBtn">Ativar Movimento</button>
-    <br><br>
-    <button class="adult" id="adultBtn">⚙️ Configurações</button>
 </div>
 
 <canvas id="game"></canvas>
 
+<div id="gameOverScreen">
+    <h1>Fim de jogo 😢</h1>
+    <button id="restartBtn">Recomeçar</button>
+</div>
+
 <script>
-/* =================== CANVAS =================== */
+/* ================== CONFIG ================== */
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
 function resize() {
-    canvas.width = Math.min(window.innerWidth - 20, 800);
-    canvas.height = 260;
+    canvas.width = window.innerWidth;
+    canvas.height = Math.min(300, window.innerHeight * 0.6);
 }
-window.addEventListener("resize", resize);
 resize();
+window.addEventListener("resize", resize);
 
-/* =================== FOTO DO ROSTO =================== */
+const GRAVITY = 0.7;
+const JUMP_FORCE = -14;
+let speed = 6;
+
+/* ================== SONS ================== */
+const jumpSound = new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=");
+const hitSound  = new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=");
+
+/* ================== DINO ================== */
 let faceImage = null;
-const photoSetup = document.getElementById("photoSetup");
 
-// carregar foto salva
-const savedFace = localStorage.getItem("dinopepe-face");
-if (savedFace) {
-    const img = new Image();
-    img.src = savedFace;
-    faceImage = img;
-    photoSetup.classList.add("hidden");
-}
-
-// upload nova foto
-document.getElementById("faceUpload").addEventListener("change", e => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = ev => {
-        localStorage.setItem("dinopepe-face", ev.target.result);
-        const img = new Image();
-        img.src = ev.target.result;
-        faceImage = img;
-        photoSetup.classList.add("hidden");
-    };
-    reader.readAsDataURL(file);
-});
-
-/* =================== CONFIG JOGO =================== */
-const GRAVITY = 0.5;
-const JUMP = -11;
-const GROUND = canvas.height - 70;
-
-let speed = 4;
-let score = 0;
-let started = false;
-let gameOver = false;
-
-/* =================== DINOPEPE =================== */
 const dino = {
     x: 60,
-    y: GROUND,
+    y: 0,
     w: 50,
     h: 50,
     vy: 0,
-    jump() {
-        if (this.y >= GROUND) this.vy = JUMP;
-    },
+    jumping: false,
+
     update() {
         this.vy += GRAVITY;
         this.y += this.vy;
-        if (this.y > GROUND) {
-            this.y = GROUND;
+        if (this.y > groundY - this.h) {
+            this.y = groundY - this.h;
             this.vy = 0;
+            this.jumping = false;
         }
     },
+
+    jump() {
+        if (!this.jumping && !gameOver) {
+            this.vy = JUMP_FORCE;
+            this.jumping = true;
+            jumpSound.play();
+        }
+    },
+
     draw() {
-        ctx.fillStyle = "#66bb6a";
+        ctx.fillStyle = "#2e7d32";
         ctx.fillRect(this.x, this.y, this.w, this.h);
 
-        // rosto
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(this.x + 25, this.y + 20, 14, 0, Math.PI * 2);
-        ctx.clip();
         if (faceImage) {
-            ctx.drawImage(faceImage, this.x + 10, this.y + 6, 30, 30);
-        } else {
-            ctx.fillStyle = "#fff";
-            ctx.fillRect(this.x + 10, this.y + 6, 30, 30);
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(this.x + 25, this.y + 18, 14, 0, Math.PI * 2);
+            ctx.clip();
+            ctx.drawImage(faceImage, this.x + 10, this.y + 2, 30, 30);
+            ctx.restore();
         }
-        ctx.restore();
-
-        ctx.fillStyle = "#388e3c";
-        ctx.fillRect(this.x + 8, this.y + 45, 10, 10);
-        ctx.fillRect(this.x + 32, this.y + 45, 10, 10);
     }
 };
 
-/* =================== OBSTÁCULOS =================== */
-const obstacles = [];
-let timer = 0;
+/* ================== CHÃO ================== */
+let groundY = canvas.height - 40;
+
+/* ================== OBSTÁCULOS ================== */
+let obstacles = [];
+let spawnTimer = 0;
 
 function spawnObstacle() {
-    const r = Math.random();
-    let obs;
-
-    if (r < 0.33) obs = { type: "hay", w: 30, h: 25, y: GROUND + 25 };
-    else if (r < 0.66) obs = { type: "corn", w: 18, h: 45, y: GROUND + 5 };
-    else obs = { type: "chicken", w: 30, h: 30, y: GROUND + 20 };
-
-    obs.x = canvas.width;
-    obstacles.push(obs);
+    obstacles.push({
+        x: canvas.width,
+        y: groundY - 30,
+        w: 30,
+        h: 30
+    });
 }
 
 function updateObstacles() {
-    timer++;
-    if (timer > 100) {
+    spawnTimer++;
+    if (spawnTimer > 90) {
         spawnObstacle();
-        timer = 0;
+        spawnTimer = 0;
     }
+
     for (let i = obstacles.length - 1; i >= 0; i--) {
         obstacles[i].x -= speed;
         if (obstacles[i].x + obstacles[i].w < 0) {
@@ -190,119 +180,106 @@ function updateObstacles() {
 }
 
 function drawObstacles() {
+    ctx.fillStyle = "#8b4513";
     obstacles.forEach(o => {
-        if (o.type === "hay") {
-            ctx.fillStyle = "#fbc02d";
-            ctx.fillRect(o.x, o.y, o.w, o.h);
-        }
-        if (o.type === "corn") {
-            ctx.fillStyle = "#fdd835";
-            ctx.fillRect(o.x, o.y, o.w, o.h);
-        }
-        if (o.type === "chicken") {
-            ctx.fillStyle = "#fff";
-            ctx.beginPath();
-            ctx.arc(o.x + 15, o.y + 15, 15, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.fillStyle = "red";
-            ctx.fillRect(o.x + 18, o.y + 5, 6, 6);
-        }
+        ctx.fillRect(o.x, o.y, o.w, o.h);
     });
 }
 
-function collide() {
-    return obstacles.some(o =>
-        dino.x < o.x + o.w &&
-        dino.x + dino.w > o.x &&
-        dino.y < o.y + o.h &&
-        dino.y + dino.h > o.y
-    );
+/* ================== SCORE ================== */
+let score = 0;
+let bestScore = localStorage.getItem("dinopepe_recorde") || 0;
+
+function drawScore() {
+    document.getElementById("scoreText").innerText =
+        `Pontos: ${score} | Recorde: ${bestScore}`;
 }
 
-/* =================== CENÁRIO =================== */
-function drawBackground() {
-    ctx.fillStyle = "#ffeb3b";
-    ctx.beginPath();
-    ctx.arc(canvas.width - 60, 60, 30, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.fillStyle = "#4caf50";
-    ctx.fillRect(0, GROUND + 55, canvas.width, 20);
+/* ================== COLISÃO ================== */
+function checkCollision() {
+    for (let o of obstacles) {
+        if (
+            dino.x < o.x + o.w &&
+            dino.x + dino.w > o.x &&
+            dino.y < o.y + o.h &&
+            dino.y + dino.h > o.y
+        ) {
+            return true;
+        }
+    }
+    return false;
 }
 
-function drawUI() {
-    ctx.fillStyle = "#333";
-    ctx.font = "18px monospace";
-    ctx.fillText("🌽 " + score, canvas.width - 80, 30);
+/* ================== GAME ================== */
+let gameOver = false;
+
+function endGame() {
+    gameOver = true;
+    hitSound.play();
+    if (score > bestScore) {
+        localStorage.setItem("dinopepe_recorde", score);
+    }
+    document.getElementById("gameOverScreen").style.display = "flex";
 }
 
-/* =================== LOOP =================== */
 function loop() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    drawBackground();
+    ctx.clearRect(0,0,canvas.width,canvas.height);
 
-    if (!started) {
-        ctx.fillStyle = "#333";
-        ctx.font = "20px monospace";
-        ctx.fillText("Mova o celular para cima 🦖", canvas.width / 2 - 150, canvas.height / 2);
-    } else if (!gameOver) {
-        speed += 0.002;
+    groundY = canvas.height - 40;
+
+    ctx.fillStyle = "#654321";
+    ctx.fillRect(0, groundY, canvas.width, 4);
+
+    if (!gameOver) {
         dino.update();
         updateObstacles();
-        if (collide()) gameOver = true;
-    } else {
-        ctx.fillStyle = "#e53935";
-        ctx.font = "32px monospace";
-        ctx.fillText("FIM DE JOGO", canvas.width / 2 - 120, canvas.height / 2);
+        if (checkCollision()) endGame();
     }
 
     dino.draw();
     drawObstacles();
-    drawUI();
+    drawScore();
 
     requestAnimationFrame(loop);
 }
-loop();
 
-/* =================== CONTROLES =================== */
-canvas.addEventListener("touchstart", () => {
-    if (!started) started = true;
-    else if (!gameOver) dino.jump();
+/* ================== CONTROLES ================== */
+document.addEventListener("keydown", e => {
+    if (e.code === "Space") dino.jump();
 });
 
-/* ===== Movimento do celular ===== */
 let lastJump = 0;
-document.getElementById("motionBtn").onclick = async () => {
-    if (typeof DeviceMotionEvent?.requestPermission === "function") {
-        const res = await DeviceMotionEvent.requestPermission();
-        if (res !== "granted") return;
-    }
-    window.addEventListener("devicemotion", e => {
-        const acc = e.accelerationIncludingGravity;
-        if (!acc) return;
-        const now = Date.now();
-        if (acc.y < -12 && now - lastJump > 700) {
-            lastJump = now;
-            if (!started) started = true;
-            else if (!gameOver) dino.jump();
-        }
-    });
-};
+window.addEventListener("devicemotion", e => {
+    const acc = e.accelerationIncludingGravity;
+    if (!acc) return;
 
-/* ===== Config adulto ===== */
-document.getElementById("adultBtn").onclick = () => {
-    const ok = confirm("Área de adulto.\nDeseja trocar a foto?");
-    if (ok) {
-        localStorage.removeItem("dinopepe-face");
-        location.reload();
-    }
-};
+    let force = window.innerWidth > window.innerHeight
+        ? Math.abs(acc.x)
+        : Math.abs(acc.y);
 
-/* ===== Service Worker ===== */
-if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("sw.js");
-}
+    if (force > 12 && Date.now() - lastJump > 500) {
+        dino.jump();
+        lastJump = Date.now();
+    }
+});
+
+/* ================== FOTO ================== */
+document.getElementById("faceUpload").addEventListener("change", e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+        const img = new Image();
+        img.onload = () => faceImage = img;
+        img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+});
+
+/* ================== RESTART ================== */
+document.getElementById("restartBtn").onclick = () => location.reload();
+
+loop();
 </script>
-
 </body>
 </html>
