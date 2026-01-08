@@ -46,6 +46,31 @@ canvas {
     padding: 4px 8px;
 }
 
+#photoPreview {
+    display: none;
+    margin-top: 8px;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+#photoPreview img {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 2px solid #4caf50;
+}
+
+#removePhoto {
+    padding: 4px 8px;
+    background: #f44336;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 11px;
+}
+
 #gameOverScreen, #tutorialScreen {
     position: fixed;
     inset: 0;
@@ -123,6 +148,10 @@ canvas {
     <div id="scoreText"></div>
     <div id="upload">
         <input type="file" id="faceUpload" accept="image/*">
+        <div id="photoPreview">
+            <img id="previewImg" src="" alt="Preview">
+            <button id="removePhoto">Remover</button>
+        </div>
     </div>
 </div>
 
@@ -150,6 +179,7 @@ const GRAVITY = 0.65;
 const JUMP_FORCE = -13.5;
 let gameSpeed = 5;
 let gameStarted = false;
+let gamePaused = false;
 
 /* ================= SONS ================= */
 function createBeep(freq, duration, type = 'sine') {
@@ -190,7 +220,7 @@ const dino = {
     legFrame: 0,
 
     jump() {
-        if (!this.jumping && !gameOver && gameStarted) {
+        if (!this.jumping && !gameOver && gameStarted && !gamePaused) {
             this.vy = JUMP_FORCE;
             this.jumping = true;
             jumpSound();
@@ -374,7 +404,7 @@ function createObstacle() {
 }
 
 function updateObstacles() {
-    if (!gameStarted) return;
+    if (!gameStarted || gamePaused) return;
     
     obstacleTimer++;
     const spawnRate = Math.max(60, 100 - Math.floor(score / 50));
@@ -504,10 +534,13 @@ function loop() {
 
     if (!gameOver && gameStarted) {
         dino.update();
-        updateObstacles();
-        score += 0.1;
+        
+        if (!gamePaused) {
+            updateObstacles();
+            score += 0.1;
 
-        if (checkCollision()) endGame();
+            if (checkCollision()) endGame();
+        }
     }
 
     updateParticles();
@@ -561,21 +594,41 @@ window.addEventListener("devicemotion", e => {
 });
 
 /* ================= FOTO ================= */
-document.getElementById("faceUpload").addEventListener("change", e => {
+const photoPreview = document.getElementById("photoPreview");
+const previewImg = document.getElementById("previewImg");
+const fileInput = document.getElementById("faceUpload");
+
+fileInput.addEventListener("change", e => {
     const file = e.target.files[0];
     if (!file) return;
+
+    // Pausa o jogo durante upload
+    gamePaused = true;
 
     const reader = new FileReader();
     reader.onload = ev => {
         const img = new Image();
         img.onload = () => {
             faceImage = img;
-            alert("Foto carregada! 🦖");
+            previewImg.src = ev.target.result;
+            photoPreview.style.display = "flex";
+            fileInput.style.display = "none";
+            
+            setTimeout(() => {
+                gamePaused = false;
+            }, 500);
         };
         img.src = ev.target.result;
     };
     reader.readAsDataURL(file);
 });
+
+document.getElementById("removePhoto").onclick = () => {
+    faceImage = null;
+    photoPreview.style.display = "none";
+    fileInput.style.display = "inline-block";
+    fileInput.value = "";
+};
 
 /* ================= INICIO/RESTART ================= */
 document.getElementById("startBtn").onclick = () => {
@@ -583,9 +636,30 @@ document.getElementById("startBtn").onclick = () => {
     gameStarted = true;
 };
 
-document.getElementById("restartBtn").onclick = () => {
-    location.reload();
-};
+function resetGame() {
+    gameOver = false;
+    gameStarted = false;
+    gamePaused = false;
+    score = 0;
+    gameSpeed = 5;
+    obstacles = [];
+    obstacleTimer = 0;
+    particles = [];
+    
+    dino.y = 0;
+    dino.vy = 0;
+    dino.jumping = false;
+    dino.legFrame = 0;
+    
+    document.getElementById("gameOverScreen").style.display = "none";
+    
+    // Pequeno delay para dar tempo de se preparar
+    setTimeout(() => {
+        gameStarted = true;
+    }, 500);
+}
+
+document.getElementById("restartBtn").onclick = resetGame;
 
 loop();
 </script>
