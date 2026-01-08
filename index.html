@@ -14,34 +14,42 @@
 
 body {
     background: #87ceeb;
-    font-family: monospace;
+    font-family: 'Courier New', monospace;
     overflow: hidden;
     text-align: center;
+    touch-action: none;
 }
 
 canvas {
-    background: linear-gradient(#87ceeb 65%, #7cfc00 65%);
     display: block;
     margin: 0 auto;
+    background: linear-gradient(#87ceeb 65%, #9be27d 65%);
+    cursor: pointer;
 }
 
 #ui {
     position: fixed;
-    top: 10px;
+    top: 8px;
     width: 100%;
-    color: #333;
-    font-size: 16px;
     z-index: 10;
+    font-size: 14px;
+    color: #333;
+    text-shadow: 1px 1px 2px white;
 }
 
 #upload {
-    margin-top: 5px;
+    margin-top: 8px;
 }
 
-#gameOverScreen {
+#upload input {
+    font-size: 12px;
+    padding: 4px 8px;
+}
+
+#gameOverScreen, #tutorialScreen {
     position: fixed;
     inset: 0;
-    background: rgba(0,0,0,0.7);
+    background: rgba(0,0,0,0.85);
     display: none;
     flex-direction: column;
     align-items: center;
@@ -50,26 +58,68 @@ canvas {
     z-index: 999;
 }
 
-#gameOverScreen h1 {
-    font-size: 3rem;
-    margin-bottom: 20px;
+#tutorialScreen {
+    display: flex;
 }
 
-#gameOverScreen button {
+#tutorialScreen h2 {
+    margin-bottom: 20px;
     font-size: 2rem;
-    padding: 20px 40px;
-    border-radius: 20px;
+}
+
+#tutorialScreen p {
+    font-size: 1.2rem;
+    margin: 10px 0;
+}
+
+.btn {
+    font-size: 1.5rem;
+    padding: 12px 32px;
+    margin: 10px;
+    border-radius: 12px;
     border: none;
     background: #4caf50;
     color: white;
+    cursor: pointer;
+    transition: transform 0.1s;
+}
+
+.btn:active {
+    transform: scale(0.95);
+}
+
+#gameOverScreen h1 {
+    font-size: 2.5rem;
+    margin-bottom: 20px;
+}
+
+#finalScore {
+    font-size: 1.8rem;
+    margin: 10px 0;
+}
+
+.particle {
+    position: absolute;
+    pointer-events: none;
 }
 </style>
 </head>
 
 <body>
 
+<div id="tutorialScreen">
+    <div>
+        <h2>🦖 DinoPepe</h2>
+        <p>🎮 Como jogar:</p>
+        <p>📱 <strong>Celular:</strong> Balance para cima ou toque na tela</p>
+        <p>💻 <strong>PC:</strong> Pressione ESPAÇO ou clique</p>
+        <p><br>Envie uma foto para usar como rosto do dino!</p>
+        <button class="btn" id="startBtn">Começar</button>
+    </div>
+</div>
+
 <div id="ui">
-    <div>🦖 DinoPepe | Pule balançando o celular</div>
+    <div style="font-size: 16px; font-weight: bold;">🦖 DinoPepe</div>
     <div id="scoreText"></div>
     <div id="upload">
         <input type="file" id="faceUpload" accept="image/*">
@@ -79,130 +129,325 @@ canvas {
 <canvas id="game"></canvas>
 
 <div id="gameOverScreen">
-    <h1>Fim de jogo 😢</h1>
-    <button id="restartBtn">Recomeçar</button>
+    <h1>Game Over! 😢</h1>
+    <div id="finalScore"></div>
+    <button class="btn" id="restartBtn">Jogar Novamente</button>
 </div>
 
 <script>
-/* ================== CONFIG ================== */
+/* ================= CONFIG ================= */
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
 function resize() {
     canvas.width = window.innerWidth;
-    canvas.height = Math.min(300, window.innerHeight * 0.6);
+    canvas.height = Math.min(400, window.innerHeight * 0.6);
 }
 resize();
 window.addEventListener("resize", resize);
 
-const GRAVITY = 0.7;
-const JUMP_FORCE = -14;
-let speed = 6;
+const GRAVITY = 0.65;
+const JUMP_FORCE = -13.5;
+let gameSpeed = 5;
+let gameStarted = false;
 
-/* ================== SONS ================== */
-const jumpSound = new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=");
-const hitSound  = new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=");
+/* ================= SONS ================= */
+function createBeep(freq, duration, type = 'sine') {
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    return () => {
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        
+        oscillator.frequency.value = freq;
+        oscillator.type = type;
+        
+        gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+        
+        oscillator.start(audioCtx.currentTime);
+        oscillator.stop(audioCtx.currentTime + duration);
+    };
+}
 
-/* ================== DINO ================== */
+const jumpSound = createBeep(800, 0.1, 'square');
+const hitSound = createBeep(200, 0.3, 'sawtooth');
+const scoreSound = createBeep(1200, 0.05, 'sine');
+
+/* ================= DINO ================= */
 let faceImage = null;
+let animFrame = 0;
 
 const dino = {
-    x: 60,
+    x: 80,
     y: 0,
-    w: 50,
+    w: 44,
     h: 50,
     vy: 0,
     jumping: false,
+    legFrame: 0,
+
+    jump() {
+        if (!this.jumping && !gameOver && gameStarted) {
+            this.vy = JUMP_FORCE;
+            this.jumping = true;
+            jumpSound();
+            createParticles(this.x + this.w/2, this.y + this.h, '#9be27d');
+        }
+    },
 
     update() {
         this.vy += GRAVITY;
         this.y += this.vy;
-        if (this.y > groundY - this.h) {
+
+        if (this.y >= groundY - this.h) {
             this.y = groundY - this.h;
             this.vy = 0;
             this.jumping = false;
-        }
-    },
-
-    jump() {
-        if (!this.jumping && !gameOver) {
-            this.vy = JUMP_FORCE;
-            this.jumping = true;
-            jumpSound.play();
+            if (gameStarted) this.legFrame = (this.legFrame + 0.2) % 2;
         }
     },
 
     draw() {
-        ctx.fillStyle = "#2e7d32";
-        ctx.fillRect(this.x, this.y, this.w, this.h);
-
+        ctx.save();
+        
+        // Corpo com textura
+        const bodyGradient = ctx.createLinearGradient(this.x, this.y, this.x, this.y + this.h);
+        bodyGradient.addColorStop(0, '#4a9d4e');
+        bodyGradient.addColorStop(1, '#2d5f30');
+        ctx.fillStyle = bodyGradient;
+        
+        // Corpo principal (formato de dino)
+        ctx.beginPath();
+        ctx.ellipse(this.x + 22, this.y + 35, 18, 20, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Pescoço
+        ctx.fillRect(this.x + 18, this.y + 15, 12, 22);
+        
+        // Cabeça
+        ctx.beginPath();
+        ctx.ellipse(this.x + this.w / 2, this.y + 15, 16, 16, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Crista
+        ctx.fillStyle = '#ff6b6b';
+        ctx.beginPath();
+        ctx.moveTo(this.x + 16, this.y + 8);
+        ctx.lineTo(this.x + 20, this.y);
+        ctx.lineTo(this.x + 24, this.y + 6);
+        ctx.lineTo(this.x + 28, this.y + 2);
+        ctx.lineTo(this.x + 32, this.y + 8);
+        ctx.fill();
+        
+        // Rosto
         if (faceImage) {
             ctx.save();
             ctx.beginPath();
-            ctx.arc(this.x + 25, this.y + 18, 14, 0, Math.PI * 2);
+            ctx.arc(this.x + this.w / 2, this.y + 15, 12, 0, Math.PI * 2);
             ctx.clip();
-            ctx.drawImage(faceImage, this.x + 10, this.y + 2, 30, 30);
+            ctx.drawImage(faceImage, this.x + 12, this.y + 3, 24, 24);
             ctx.restore();
+        } else {
+            // Olho
+            ctx.fillStyle = 'white';
+            ctx.beginPath();
+            ctx.arc(this.x + 28, this.y + 12, 4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = 'black';
+            ctx.beginPath();
+            ctx.arc(this.x + 29, this.y + 12, 2, 0, Math.PI * 2);
+            ctx.fill();
         }
+        
+        // Braços
+        ctx.fillStyle = '#4a9d4e';
+        ctx.fillRect(this.x + 8, this.y + 28, 6, 12);
+        ctx.fillRect(this.x + 30, this.y + 28, 6, 12);
+        
+        // Pernas (animadas)
+        const legOffset = this.jumping ? 0 : Math.floor(this.legFrame) * 4;
+        ctx.fillRect(this.x + 14, this.y + 50, 8, 15);
+        ctx.fillRect(this.x + 22 + legOffset, this.y + 50, 8, 15);
+        
+        // Pés
+        ctx.fillStyle = '#ff8c42';
+        ctx.fillRect(this.x + 12, this.y + 63, 12, 4);
+        ctx.fillRect(this.x + 20 + legOffset, this.y + 63, 12, 4);
+        
+        ctx.restore();
     }
 };
 
-/* ================== CHÃO ================== */
-let groundY = canvas.height - 40;
+/* ================= PARTÍCULAS ================= */
+let particles = [];
 
-/* ================== OBSTÁCULOS ================== */
+function createParticles(x, y, color) {
+    for (let i = 0; i < 8; i++) {
+        particles.push({
+            x: x,
+            y: y,
+            vx: (Math.random() - 0.5) * 4,
+            vy: Math.random() * -3 - 2,
+            life: 30,
+            color: color
+        });
+    }
+}
+
+function updateParticles() {
+    particles = particles.filter(p => {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += 0.2;
+        p.life--;
+        return p.life > 0;
+    });
+}
+
+function drawParticles() {
+    particles.forEach(p => {
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = p.life / 30;
+        ctx.fillRect(p.x, p.y, 4, 4);
+        ctx.globalAlpha = 1;
+    });
+}
+
+/* ================= CHÃO ================= */
+let groundY = 0;
+let clouds = [];
+
+function initClouds() {
+    for (let i = 0; i < 5; i++) {
+        clouds.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * (groundY * 0.5),
+            size: 20 + Math.random() * 30
+        });
+    }
+}
+
+function updateClouds() {
+    clouds.forEach(c => {
+        c.x -= gameSpeed * 0.3;
+        if (c.x + c.size < 0) {
+            c.x = canvas.width;
+            c.y = Math.random() * (groundY * 0.5);
+        }
+    });
+}
+
+function drawClouds() {
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    clouds.forEach(c => {
+        ctx.beginPath();
+        ctx.arc(c.x, c.y, c.size * 0.5, 0, Math.PI * 2);
+        ctx.arc(c.x + c.size * 0.4, c.y, c.size * 0.6, 0, Math.PI * 2);
+        ctx.arc(c.x + c.size * 0.8, c.y, c.size * 0.5, 0, Math.PI * 2);
+        ctx.fill();
+    });
+}
+
+/* ================= OBSTÁCULOS ================= */
 let obstacles = [];
-let spawnTimer = 0;
+let obstacleTimer = 0;
 
-function spawnObstacle() {
+const obstacleTypes = [
+    { w: 24, h: 35, color: '#8b4513' }, // Cacto pequeno
+    { w: 30, h: 45, color: '#654321' }, // Cacto grande
+    { w: 35, h: 28, color: '#a0522d' }, // Pedra
+];
+
+function createObstacle() {
+    const type = obstacleTypes[Math.floor(Math.random() * obstacleTypes.length)];
     obstacles.push({
-        x: canvas.width,
-        y: groundY - 30,
-        w: 30,
-        h: 30
+        x: canvas.width + 20,
+        y: groundY - type.h,
+        w: type.w,
+        h: type.h,
+        color: type.color,
+        scored: false
     });
 }
 
 function updateObstacles() {
-    spawnTimer++;
-    if (spawnTimer > 90) {
-        spawnObstacle();
-        spawnTimer = 0;
+    if (!gameStarted) return;
+    
+    obstacleTimer++;
+    const spawnRate = Math.max(60, 100 - Math.floor(score / 50));
+    
+    if (obstacleTimer > spawnRate) {
+        createObstacle();
+        obstacleTimer = 0;
     }
 
-    for (let i = obstacles.length - 1; i >= 0; i--) {
-        obstacles[i].x -= speed;
-        if (obstacles[i].x + obstacles[i].w < 0) {
-            obstacles.splice(i, 1);
-            score++;
+    obstacles.forEach(o => {
+        o.x -= gameSpeed;
+        
+        // Pontuação ao passar
+        if (!o.scored && o.x + o.w < dino.x) {
+            o.scored = true;
+            score += 10;
+            scoreSound();
         }
-    }
+    });
+    
+    obstacles = obstacles.filter(o => o.x + o.w > 0);
+    
+    // Aumenta dificuldade
+    gameSpeed = 5 + Math.floor(score / 100) * 0.5;
 }
 
 function drawObstacles() {
-    ctx.fillStyle = "#8b4513";
     obstacles.forEach(o => {
-        ctx.fillRect(o.x, o.y, o.w, o.h);
+        ctx.fillStyle = o.color;
+        
+        if (o.h > 40) {
+            // Cacto grande
+            ctx.fillRect(o.x + 8, o.y, 14, o.h);
+            ctx.fillRect(o.x, o.y + 10, 8, 15);
+            ctx.fillRect(o.x + 22, o.y + 15, 8, 12);
+            ctx.fillStyle = '#4a7c4e';
+            ctx.fillRect(o.x + 10, o.y, 3, 8);
+            ctx.fillRect(o.x + 17, o.y + 5, 3, 8);
+        } else if (o.h > 30) {
+            // Cacto pequeno
+            ctx.fillRect(o.x + 6, o.y, 12, o.h);
+            ctx.fillRect(o.x, o.y + 8, 6, 12);
+            ctx.fillStyle = '#4a7c4e';
+            ctx.fillRect(o.x + 9, o.y, 2, 6);
+        } else {
+            // Pedra
+            ctx.beginPath();
+            ctx.ellipse(o.x + o.w/2, o.y + o.h/2, o.w/2, o.h/2, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#8b7355';
+            ctx.beginPath();
+            ctx.ellipse(o.x + o.w/2, o.y + o.h/3, o.w/3, o.h/4, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
     });
 }
 
-/* ================== SCORE ================== */
+/* ================= SCORE ================= */
 let score = 0;
-let bestScore = localStorage.getItem("dinopepe_recorde") || 0;
+let bestScore = Number(localStorage.getItem("dinopepe_recorde")) || 0;
 
 function drawScore() {
-    document.getElementById("scoreText").innerText =
-        `Pontos: ${score} | Recorde: ${bestScore}`;
+    document.getElementById("scoreText").innerHTML =
+        `Pontos: <strong>${Math.floor(score)}</strong> | Recorde: <strong>${bestScore}</strong> | Velocidade: ${gameSpeed.toFixed(1)}x`;
 }
 
-/* ================== COLISÃO ================== */
+/* ================= COLISÃO ================= */
 function checkCollision() {
     for (let o of obstacles) {
         if (
-            dino.x < o.x + o.w &&
-            dino.x + dino.w > o.x &&
-            dino.y < o.y + o.h &&
-            dino.y + dino.h > o.y
+            dino.x + 8 < o.x + o.w &&
+            dino.x + dino.w - 8 > o.x &&
+            dino.y + dino.h - 4 > o.y
         ) {
             return true;
         }
@@ -210,74 +455,137 @@ function checkCollision() {
     return false;
 }
 
-/* ================== GAME ================== */
+/* ================= GAME ================= */
 let gameOver = false;
 
 function endGame() {
     gameOver = true;
-    hitSound.play();
-    if (score > bestScore) {
-        localStorage.setItem("dinopepe_recorde", score);
+    hitSound();
+    
+    createParticles(dino.x + dino.w/2, dino.y + dino.h/2, '#ff4444');
+
+    const finalScoreNum = Math.floor(score);
+    if (finalScoreNum > bestScore) {
+        bestScore = finalScoreNum;
+        localStorage.setItem("dinopepe_recorde", bestScore);
     }
+
+    document.getElementById("finalScore").innerHTML = 
+        `Pontos: <strong>${finalScoreNum}</strong><br>` +
+        `Recorde: <strong>${bestScore}</strong>`;
     document.getElementById("gameOverScreen").style.display = "flex";
 }
 
 function loop() {
-    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    groundY = canvas.height - 40;
+    groundY = canvas.height - 30;
 
-    ctx.fillStyle = "#654321";
-    ctx.fillRect(0, groundY, canvas.width, 4);
+    // Nuvens
+    if (clouds.length === 0) initClouds();
+    updateClouds();
+    drawClouds();
 
-    if (!gameOver) {
+    // Chão detalhado
+    ctx.strokeStyle = "#5d8a3a";
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(0, groundY);
+    ctx.lineTo(canvas.width, groundY);
+    ctx.stroke();
+    
+    // Grama
+    ctx.fillStyle = "#7cb342";
+    for (let i = 0; i < canvas.width; i += 15) {
+        ctx.fillRect(i, groundY + 2, 2, 6);
+        ctx.fillRect(i + 5, groundY + 1, 2, 8);
+        ctx.fillRect(i + 10, groundY + 3, 2, 5);
+    }
+
+    if (!gameOver && gameStarted) {
         dino.update();
         updateObstacles();
+        score += 0.1;
+
         if (checkCollision()) endGame();
     }
 
-    dino.draw();
+    updateParticles();
+    drawParticles();
     drawObstacles();
+    dino.draw();
     drawScore();
 
+    animFrame++;
     requestAnimationFrame(loop);
 }
 
-/* ================== CONTROLES ================== */
+/* ================= CONTROLES ================= */
+// Teclado
 document.addEventListener("keydown", e => {
-    if (e.code === "Space") dino.jump();
-});
-
-let lastJump = 0;
-window.addEventListener("devicemotion", e => {
-    const acc = e.accelerationIncludingGravity;
-    if (!acc) return;
-
-    let force = window.innerWidth > window.innerHeight
-        ? Math.abs(acc.x)
-        : Math.abs(acc.y);
-
-    if (force > 12 && Date.now() - lastJump > 500) {
+    if (e.code === "Space") {
+        e.preventDefault();
         dino.jump();
-        lastJump = Date.now();
     }
 });
 
-/* ================== FOTO ================== */
+// Clique/Toque
+canvas.addEventListener("click", () => dino.jump());
+canvas.addEventListener("touchstart", (e) => {
+    e.preventDefault();
+    dino.jump();
+});
+
+// Sensor de movimento (mobile)
+let lastAcceleration = { x: 0, y: 0, z: 0 };
+let lastJump = 0;
+
+window.addEventListener("devicemotion", e => {
+    if (!e.accelerationIncludingGravity) return;
+    
+    const acc = e.accelerationIncludingGravity;
+    const now = Date.now();
+    
+    // Detecta movimento brusco para cima
+    const deltaY = Math.abs(acc.y - lastAcceleration.y);
+    const deltaZ = Math.abs(acc.z - lastAcceleration.z);
+    
+    const isShake = (deltaY > 8 || deltaZ > 8) && now - lastJump > 400;
+    
+    if (isShake) {
+        dino.jump();
+        lastJump = now;
+    }
+    
+    lastAcceleration = { x: acc.x, y: acc.y, z: acc.z };
+});
+
+/* ================= FOTO ================= */
 document.getElementById("faceUpload").addEventListener("change", e => {
     const file = e.target.files[0];
     if (!file) return;
+
     const reader = new FileReader();
     reader.onload = ev => {
         const img = new Image();
-        img.onload = () => faceImage = img;
+        img.onload = () => {
+            faceImage = img;
+            alert("Foto carregada! 🦖");
+        };
         img.src = ev.target.result;
     };
     reader.readAsDataURL(file);
 });
 
-/* ================== RESTART ================== */
-document.getElementById("restartBtn").onclick = () => location.reload();
+/* ================= INICIO/RESTART ================= */
+document.getElementById("startBtn").onclick = () => {
+    document.getElementById("tutorialScreen").style.display = "none";
+    gameStarted = true;
+};
+
+document.getElementById("restartBtn").onclick = () => {
+    location.reload();
+};
 
 loop();
 </script>
