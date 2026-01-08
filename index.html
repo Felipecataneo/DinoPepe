@@ -14,7 +14,6 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="DinoPepe">
 
-
 <style>
 * {
     margin: 0;
@@ -28,12 +27,12 @@ body {
     overflow: hidden;
     text-align: center;
     touch-action: none;
+    transition: background 2s ease;
 }
 
 canvas {
     display: block;
     margin: 0 auto;
-    background: linear-gradient(#87ceeb 65%, #9be27d 65%);
     cursor: pointer;
 }
 
@@ -45,6 +44,28 @@ canvas {
     font-size: 13px;
     color: #333;
     text-shadow: 1px 1px 2px white;
+}
+
+#pauseBtn {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 3rem;
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(76, 175, 80, 0.9);
+    color: white;
+    cursor: pointer;
+    z-index: 100;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    display: none;
+}
+
+#pauseBtn:active {
+    transform: translate(-50%, -50%) scale(0.95);
 }
 
 #powerupBar {
@@ -178,6 +199,8 @@ canvas {
 
 <canvas id="game"></canvas>
 
+<button id="pauseBtn">⏸️</button>
+
 <div id="gameOverScreen">
     <h1>Game Over! 😢</h1>
     <div id="finalScore"></div>
@@ -198,6 +221,9 @@ window.addEventListener("resize", resize);
 
 const GRAVITY = 0.65;
 const JUMP_FORCE = -13.5;
+const MAX_PARTICLES = 50;
+const MAX_COINS = 30;
+const MAX_POWERUPS = 5;
 let gameSpeed = 5;
 let baseGameSpeed = 5;
 let gameStarted = false;
@@ -231,17 +257,67 @@ const hitSound = createBeep(200, 0.3, 'sawtooth');
 const coinSound = createBeep(1200, 0.05, 'sine');
 const powerupSound = createBeep(1500, 0.15, 'triangle');
 
+/* ================= TEMAS DINÂMICOS ================= */
+function getCurrentTheme(score) {
+    if (score < 500) {
+        return {
+            skyTop: '#87ceeb',
+            skyBottom: '#b8e6f5',
+            groundColor: '#9be27d',
+            cloudOpacity: 0.7,
+            stars: false,
+            moon: false,
+            mountainColor: 'rgba(100, 140, 80, 0.4)'
+        };
+    } else if (score < 1500) {
+        return {
+            skyTop: '#ff9a56',
+            skyBottom: '#ffd89b',
+            groundColor: '#8ab85f',
+            cloudOpacity: 0.5,
+            stars: false,
+            moon: false,
+            mountainColor: 'rgba(120, 100, 70, 0.4)'
+        };
+    } else if (score < 3000) {
+        return {
+            skyTop: '#5f3b7a',
+            skyBottom: '#c76ca6',
+            groundColor: '#6b9151',
+            cloudOpacity: 0.3,
+            stars: true,
+            moon: false,
+            mountainColor: 'rgba(80, 60, 100, 0.5)'
+        };
+    } else {
+        return {
+            skyTop: '#1a1a2e',
+            skyBottom: '#16213e',
+            groundColor: '#4a6741',
+            cloudOpacity: 0.2,
+            stars: true,
+            moon: true,
+            mountainColor: 'rgba(40, 40, 60, 0.6)'
+        };
+    }
+}
+
+let currentTheme = getCurrentTheme(0);
+let stars = [];
+
 /* ================= POWER-UPS ================= */
 let activePowerups = {
-    shield: 0,      // Tempo restante de escudo
-    magnet: 0,      // Tempo restante de ímã
-    slowmo: 0       // Tempo restante de slow-motion
+    shield: 0,
+    magnet: 0,
+    slowmo: 0
 };
 
 let powerups = [];
 let powerupTimer = 0;
 
 function createPowerup() {
+    if (powerups.length >= MAX_POWERUPS) return;
+    
     const types = ['shield', 'magnet', 'slowmo'];
     const type = types[Math.floor(Math.random() * types.length)];
     
@@ -259,7 +335,7 @@ function updatePowerups() {
     if (!gameStarted || gamePaused) return;
     
     powerupTimer++;
-    if (powerupTimer > 600 && Math.random() < 0.01) { // Raro
+    if (powerupTimer > 600 && Math.random() < 0.01) {
         createPowerup();
         powerupTimer = 0;
     }
@@ -268,7 +344,6 @@ function updatePowerups() {
         p.x -= gameSpeed;
         p.float += 0.1;
         
-        // Ímã atrai powerup
         if (activePowerups.magnet > 0) {
             const dx = dino.x - p.x;
             const dy = dino.y - p.y;
@@ -279,14 +354,13 @@ function updatePowerups() {
             }
         }
         
-        // Coleta
         if (
             dino.x < p.x + p.w &&
             dino.x + dino.w > p.x &&
             dino.y < p.y + p.h &&
             dino.y + dino.h > p.y
         ) {
-            activePowerups[p.type] = 300; // 5 segundos
+            activePowerups[p.type] = 300;
             powerupSound();
             createParticles(p.x + p.w/2, p.y + p.h/2, '#ffd700');
             p.collected = true;
@@ -295,12 +369,10 @@ function updatePowerups() {
     
     powerups = powerups.filter(p => !p.collected && p.x + p.w > 0);
     
-    // Decrementa timers
     Object.keys(activePowerups).forEach(key => {
         if (activePowerups[key] > 0) activePowerups[key]--;
     });
     
-    // Aplica slow-motion
     if (activePowerups.slowmo > 0) {
         gameSpeed = baseGameSpeed * 0.5;
     } else {
@@ -317,7 +389,6 @@ function drawPowerups() {
         ctx.shadowColor = 'rgba(255, 215, 0, 0.6)';
         
         if (p.type === 'shield') {
-            // Escudo
             ctx.strokeStyle = '#2196F3';
             ctx.lineWidth = 4;
             ctx.beginPath();
@@ -327,14 +398,12 @@ function drawPowerups() {
             ctx.font = '20px Arial';
             ctx.fillText('🛡️', p.x + 5, y + 22);
         } else if (p.type === 'magnet') {
-            // Ímã
             ctx.fillStyle = '#E91E63';
             ctx.fillRect(p.x + 5, y + 5, 8, 20);
             ctx.fillRect(p.x + 17, y + 5, 8, 20);
             ctx.fillStyle = '#C2185B';
             ctx.fillRect(p.x + 5, y + 20, 20, 5);
         } else if (p.type === 'slowmo') {
-            // Relógio
             ctx.strokeStyle = '#FF9800';
             ctx.lineWidth = 3;
             ctx.beginPath();
@@ -372,10 +441,11 @@ let coinTimer = 0;
 let totalCoins = 0;
 
 function createCoin() {
+    if (coins.length >= MAX_COINS) return;
+    
     const pattern = Math.random();
     
     if (pattern < 0.5) {
-        // Moeda única
         coins.push({
             x: canvas.width + 30,
             y: groundY - 60 - Math.random() * 80,
@@ -384,7 +454,6 @@ function createCoin() {
             spin: 0
         });
     } else {
-        // Linha de moedas
         const startY = groundY - 100;
         for (let i = 0; i < 5; i++) {
             coins.push({
@@ -411,7 +480,6 @@ function updateCoins() {
         c.x -= gameSpeed;
         c.spin += 0.15;
         
-        // Ímã atrai moeda
         if (activePowerups.magnet > 0) {
             const dx = dino.x - c.x;
             const dy = dino.y - c.y;
@@ -422,7 +490,6 @@ function updateCoins() {
             }
         }
         
-        // Coleta
         if (
             dino.x < c.x + c.w &&
             dino.x + dino.w > c.x &&
@@ -501,7 +568,6 @@ const dino = {
     draw() {
         ctx.save();
         
-        // Escudo visual
         if (activePowerups.shield > 0) {
             ctx.strokeStyle = '#2196F3';
             ctx.lineWidth = 3;
@@ -512,26 +578,21 @@ const dino = {
             ctx.globalAlpha = 1;
         }
         
-        // Corpo com textura
         const bodyGradient = ctx.createLinearGradient(this.x, this.y, this.x, this.y + this.h);
         bodyGradient.addColorStop(0, '#4a9d4e');
         bodyGradient.addColorStop(1, '#2d5f30');
         ctx.fillStyle = bodyGradient;
         
-        // Corpo principal
         ctx.beginPath();
         ctx.ellipse(this.x + 22, this.y + 35, 18, 20, 0, 0, Math.PI * 2);
         ctx.fill();
         
-        // Pescoço
         ctx.fillRect(this.x + 18, this.y + 15, 12, 22);
         
-        // Cabeça
         ctx.beginPath();
         ctx.ellipse(this.x + this.w / 2, this.y + 15, 16, 16, 0, 0, Math.PI * 2);
         ctx.fill();
         
-        // Crista
         ctx.fillStyle = '#ff6b6b';
         ctx.beginPath();
         ctx.moveTo(this.x + 16, this.y + 8);
@@ -541,7 +602,6 @@ const dino = {
         ctx.lineTo(this.x + 32, this.y + 8);
         ctx.fill();
         
-        // Rosto
         if (faceImage) {
             ctx.save();
             ctx.beginPath();
@@ -550,7 +610,6 @@ const dino = {
             ctx.drawImage(faceImage, this.x + 12, this.y + 3, 24, 24);
             ctx.restore();
         } else {
-            // Olho
             ctx.fillStyle = 'white';
             ctx.beginPath();
             ctx.arc(this.x + 28, this.y + 12, 4, 0, Math.PI * 2);
@@ -561,17 +620,14 @@ const dino = {
             ctx.fill();
         }
         
-        // Braços
         ctx.fillStyle = '#4a9d4e';
         ctx.fillRect(this.x + 8, this.y + 28, 6, 12);
         ctx.fillRect(this.x + 30, this.y + 28, 6, 12);
         
-        // Pernas
         const legOffset = this.jumping ? 0 : Math.floor(this.legFrame) * 4;
         ctx.fillRect(this.x + 14, this.y + 50, 8, 15);
         ctx.fillRect(this.x + 22 + legOffset, this.y + 50, 8, 15);
         
-        // Pés
         ctx.fillStyle = '#ff8c42';
         ctx.fillRect(this.x + 12, this.y + 63, 12, 4);
         ctx.fillRect(this.x + 20 + legOffset, this.y + 63, 12, 4);
@@ -584,6 +640,8 @@ const dino = {
 let particles = [];
 
 function createParticles(x, y, color) {
+    if (particles.length >= MAX_PARTICLES) return;
+    
     for (let i = 0; i < 8; i++) {
         particles.push({
             x: x,
@@ -638,9 +696,55 @@ function initBackground() {
             speed: 0.5
         });
     }
+    
+    for (let i = 0; i < 80; i++) {
+        stars.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height * 0.7,
+            size: Math.random() * 2 + 1,
+            twinkle: Math.random() * Math.PI * 2
+        });
+    }
+}
+
+function lerpColor(color1, color2, t) {
+    const c1 = hexToRgb(color1);
+    const c2 = hexToRgb(color2);
+    
+    const r = Math.round(c1.r + (c2.r - c1.r) * t);
+    const g = Math.round(c1.g + (c2.g - c1.g) * t);
+    const b = Math.round(c1.b + (c2.b - c1.b) * t);
+    
+    return rgbToHex(r, g, b);
+}
+
+function hexToRgb(hex) {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+    } : { r: 0, g: 0, b: 0 };
+}
+
+function rgbToHex(r, g, b) {
+    return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
 }
 
 function updateBackground() {
+    const newTheme = getCurrentTheme(score);
+    
+    const lerpSpeed = 0.02;
+    currentTheme.skyTop = lerpColor(currentTheme.skyTop, newTheme.skyTop, lerpSpeed);
+    currentTheme.skyBottom = lerpColor(currentTheme.skyBottom, newTheme.skyBottom, lerpSpeed);
+    currentTheme.groundColor = lerpColor(currentTheme.groundColor, newTheme.groundColor, lerpSpeed);
+    currentTheme.cloudOpacity += (newTheme.cloudOpacity - currentTheme.cloudOpacity) * lerpSpeed;
+    currentTheme.stars = newTheme.stars;
+    currentTheme.moon = newTheme.moon;
+    currentTheme.mountainColor = newTheme.mountainColor;
+    
+    document.body.style.background = currentTheme.skyTop;
+    
     clouds.forEach(c => {
         c.x -= gameSpeed * c.speed;
         if (c.x + c.size < 0) {
@@ -656,11 +760,45 @@ function updateBackground() {
             m.height = 60 + Math.random() * 40;
         }
     });
+    
+    if (currentTheme.stars) {
+        stars.forEach(s => {
+            s.twinkle += 0.05;
+            s.x -= gameSpeed * 0.1;
+            if (s.x < 0) s.x = canvas.width;
+        });
+    }
 }
 
 function drawBackground() {
-    // Montanhas
-    ctx.fillStyle = 'rgba(100, 140, 80, 0.4)';
+    const skyGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    skyGradient.addColorStop(0, currentTheme.skyTop);
+    skyGradient.addColorStop(0.65, currentTheme.skyBottom);
+    skyGradient.addColorStop(1, currentTheme.groundColor);
+    ctx.fillStyle = skyGradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    if (currentTheme.stars) {
+        stars.forEach(s => {
+            const opacity = (Math.sin(s.twinkle) + 1) / 2;
+            ctx.fillStyle = `rgba(255, 255, 255, ${opacity * 0.8})`;
+            ctx.beginPath();
+            ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+            ctx.fill();
+        });
+    }
+    
+    if (currentTheme.moon) {
+        ctx.fillStyle = 'rgba(255, 255, 200, 0.9)';
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = 'rgba(255, 255, 150, 0.5)';
+        ctx.beginPath();
+        ctx.arc(canvas.width - 80, 60, 30, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+    }
+    
+    ctx.fillStyle = currentTheme.mountainColor;
     mountains.forEach(m => {
         ctx.beginPath();
         ctx.moveTo(m.x, groundY);
@@ -670,8 +808,7 @@ function drawBackground() {
         ctx.fill();
     });
     
-    // Nuvens
-    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.fillStyle = `rgba(255,255,255,${currentTheme.cloudOpacity})`;
     clouds.forEach(c => {
         ctx.beginPath();
         ctx.arc(c.x, c.y, c.size * 0.5, 0, Math.PI * 2);
@@ -689,7 +826,7 @@ const obstacleTypes = [
     { w: 24, h: 35, color: '#8b4513', type: 'ground' },
     { w: 30, h: 45, color: '#654321', type: 'ground' },
     { w: 35, h: 28, color: '#a0522d', type: 'ground' },
-    { w: 40, h: 25, color: '#8B4513', type: 'flying' } // Pássaro
+    { w: 40, h: 25, color: '#8B4513', type: 'flying' }
 ];
 
 function createObstacle() {
@@ -755,20 +892,16 @@ function drawObstacles() {
         ctx.fillStyle = o.color;
         
         if (o.type === 'flying') {
-            // Pássaro
             ctx.save();
             ctx.translate(o.x + o.w/2, o.y + o.h/2);
             
-            // Corpo
             ctx.fillStyle = '#6d4c41';
             ctx.fillRect(-15, -8, 30, 16);
             
-            // Cabeça
             ctx.beginPath();
             ctx.arc(12, 0, 10, 0, Math.PI * 2);
             ctx.fill();
             
-            // Bico
             ctx.fillStyle = '#ff9800';
             ctx.beginPath();
             ctx.moveTo(18, -3);
@@ -776,7 +909,6 @@ function drawObstacles() {
             ctx.lineTo(18, 3);
             ctx.fill();
             
-            // Asas
             const wingAngle = Math.sin(o.wingFrame) * 0.5;
             ctx.fillStyle = '#8d6e63';
             ctx.save();
@@ -790,7 +922,6 @@ function drawObstacles() {
             
             ctx.restore();
         } else {
-            // Obstáculos terrestres
             if (o.h > 40) {
                 ctx.fillRect(o.x + 8, o.y, 14, o.h);
                 ctx.fillRect(o.x, o.y + 10, 8, 15);
@@ -827,7 +958,6 @@ function drawScore() {
 
 /* ================= COLISÃO ================= */
 function checkCollision() {
-    // Escudo protege
     if (activePowerups.shield > 0) return false;
     
     for (let o of obstacles) {
@@ -863,6 +993,7 @@ function endGame() {
         `Moedas: <strong>🪙 ${totalCoins}</strong><br>` +
         `Recorde: <strong>${bestScore}</strong>`;
     document.getElementById("gameOverScreen").style.display = "flex";
+    document.getElementById("pauseBtn").style.display = "none";
 }
 
 function loop() {
@@ -874,16 +1005,15 @@ function loop() {
     updateBackground();
     drawBackground();
 
-    // Chão detalhado
-    ctx.strokeStyle = "#5d8a3a";
+    const groundDark = lerpColor(currentTheme.groundColor, '#000000', 0.3);
+    ctx.strokeStyle = groundDark;
     ctx.lineWidth = 4;
     ctx.beginPath();
     ctx.moveTo(0, groundY);
     ctx.lineTo(canvas.width, groundY);
     ctx.stroke();
     
-    // Grama
-    ctx.fillStyle = "#7cb342";
+    ctx.fillStyle = currentTheme.groundColor;
     for (let i = 0; i < canvas.width; i += 15) {
         ctx.fillRect(i, groundY + 2, 2, 6);
         ctx.fillRect(i + 5, groundY + 1, 2, 8);
@@ -917,7 +1047,6 @@ function loop() {
 }
 
 /* ================= CONTROLES ================= */
-// Teclado
 document.addEventListener("keydown", e => {
     if (e.code === "Space") {
         e.preventDefault();
@@ -925,40 +1054,60 @@ document.addEventListener("keydown", e => {
     }
 });
 
-// Clique/Toque
 canvas.addEventListener("click", () => dino.jump());
 canvas.addEventListener("touchstart", (e) => {
     e.preventDefault();
     dino.jump();
 });
 
-// Sensor de movimento MELHORADO (detecta orientação)
-let lastAcceleration = { x: 0, y: 0, z: 0 };
+let lastOrientation = { beta: 0, gamma: 0 };
 let lastJump = 0;
+let orientationSupported = false;
+let lastAcceleration = { x: 0, y: 0, z: 0 };
+
+if (window.DeviceOrientationEvent) {
+    window.addEventListener("deviceorientation", e => {
+        if (!gameStarted || gameOver || gamePaused) return;
+        
+        orientationSupported = true;
+        const now = Date.now();
+        
+        const beta = e.beta || 0;
+        const gamma = e.gamma || 0;
+        
+        const betaDelta = lastOrientation.beta - beta;
+        
+        const isShake = betaDelta > 15 && now - lastJump > 400;
+        
+        if (isShake) {
+            dino.jump();
+            lastJump = now;
+        }
+        
+        lastOrientation = { beta, gamma };
+    });
+}
 
 window.addEventListener("devicemotion", e => {
+    if (orientationSupported || !gameStarted || gameOver || gamePaused) return;
     if (!e.accelerationIncludingGravity) return;
     
     const acc = e.accelerationIncludingGravity;
     const now = Date.now();
     
-    // Detecta orientação do dispositivo
     const isLandscape = window.innerWidth > window.innerHeight;
     
-    // Movimento brusco para cima (ajusta eixo baseado na orientação)
     let shakeForce = 0;
     
     if (isLandscape) {
-        // Modo paisagem: usa eixo X (balançar para frente/cima)
         shakeForce = Math.abs(acc.x - lastAcceleration.x);
     } else {
-        // Modo retrato: usa eixo Y e Z
         const deltaY = Math.abs(acc.y - lastAcceleration.y);
         const deltaZ = Math.abs(acc.z - lastAcceleration.z);
         shakeForce = Math.max(deltaY, deltaZ);
     }
     
-    const isShake = shakeForce > 7 && now - lastJump > 400;
+    const isShake = shakeForce > 10 && now - lastJump > 400;
     
     if (isShake) {
         dino.jump();
@@ -1008,6 +1157,17 @@ document.getElementById("removePhoto").onclick = () => {
 document.getElementById("startBtn").onclick = () => {
     document.getElementById("tutorialScreen").style.display = "none";
     gameStarted = true;
+    
+    if (typeof DeviceOrientationEvent !== 'undefined' && 
+        typeof DeviceOrientationEvent.requestPermission === 'function') {
+        DeviceOrientationEvent.requestPermission()
+            .then(response => {
+                if (response === 'granted') {
+                    orientationSupported = true;
+                }
+            })
+            .catch(console.error);
+    }
 };
 
 function resetGame() {
@@ -1015,6 +1175,7 @@ function resetGame() {
     gameStarted = false;
     gamePaused = false;
     score = 0;
+    totalCoins = 0;
     gameSpeed = 5;
     baseGameSpeed = 5;
     obstacles = [];
@@ -1026,12 +1187,15 @@ function resetGame() {
     powerupTimer = 0;
     activePowerups = { shield: 0, magnet: 0, slowmo: 0 };
     
+    currentTheme = getCurrentTheme(0);
+    
     dino.y = 0;
     dino.vy = 0;
     dino.jumping = false;
     dino.legFrame = 0;
     
     document.getElementById("gameOverScreen").style.display = "none";
+    document.getElementById("pauseBtn").style.display = "none";
     
     setTimeout(() => {
         gameStarted = true;
@@ -1039,6 +1203,22 @@ function resetGame() {
 }
 
 document.getElementById("restartBtn").onclick = resetGame;
+
+const pauseBtn = document.getElementById("pauseBtn");
+
+pauseBtn.onclick = () => {
+    if (!gameStarted || gameOver) return;
+    
+    gamePaused = !gamePaused;
+    pauseBtn.textContent = gamePaused ? "▶️" : "⏸️";
+};
+
+setInterval(() => {
+    if (gameStarted && !gameOver && pauseBtn.style.display === "none") {
+        pauseBtn.style.display = "block";
+        pauseBtn.textContent = "⏸️";
+    }
+}, 1000);
 
 loop();
 </script>
