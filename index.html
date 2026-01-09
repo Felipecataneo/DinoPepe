@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DinoPepe 🦖</title>
+<title>DinoPepe: Super Edition 🦖</title>
 
 <link rel="manifest" href="manifest.json">
 
@@ -28,6 +28,8 @@ body {
     text-align: center;
     touch-action: none;
     transition: background 2s ease;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 canvas {
@@ -44,6 +46,12 @@ canvas {
     font-size: 13px;
     color: #333;
     text-shadow: 1px 1px 2px white;
+    pointer-events: none; /* Deixa clicar no jogo através da UI */
+}
+
+/* Reativar pointer events para botões específicos na UI */
+#ui input, #ui button, #ui label {
+    pointer-events: auto;
 }
 
 #pauseBtn {
@@ -67,6 +75,23 @@ canvas {
     transform: scale(0.95);
 }
 
+#shopBtn {
+    position: fixed;
+    top: 70px;
+    right: 10px;
+    font-size: 1.5rem;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255, 152, 0, 0.9);
+    color: white;
+    cursor: pointer;
+    z-index: 100;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    display: none; /* Aparece só quando pausado ou game over, ou sempre, controlaremos via JS */
+}
+
 #powerupBar {
     margin-top: 6px;
     font-size: 12px;
@@ -82,6 +107,7 @@ canvas {
 
 #upload {
     margin-top: 8px;
+    pointer-events: auto;
 }
 
 #upload input {
@@ -114,7 +140,7 @@ canvas {
     font-size: 11px;
 }
 
-#gameOverScreen, #tutorialScreen {
+#gameOverScreen, #tutorialScreen, #shopScreen {
     position: fixed;
     inset: 0;
     background: rgba(0,0,0,0.85);
@@ -130,7 +156,7 @@ canvas {
     display: flex;
 }
 
-#tutorialScreen h2 {
+#tutorialScreen h2, #shopScreen h2 {
     margin-bottom: 20px;
     font-size: 2rem;
 }
@@ -165,6 +191,41 @@ canvas {
     font-size: 1.8rem;
     margin: 10px 0;
 }
+
+/* Estilos da Loja */
+#shopItems {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+    justify-content: center;
+    max-width: 600px;
+    padding: 20px;
+}
+
+.shop-item {
+    border: 2px solid rgba(255,255,255,0.3);
+    border-radius: 12px;
+    padding: 15px;
+    width: 100px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: rgba(0,0,0,0.5);
+}
+
+.shop-item:active {
+    transform: scale(0.95);
+}
+
+.shop-item.owned {
+    border-color: #4caf50;
+}
+
+.shop-item.selected {
+    background: rgba(76, 175, 80, 0.4);
+    border-color: #8bc34a;
+    box-shadow: 0 0 10px #8bc34a;
+}
 </style>
 </head>
 
@@ -176,11 +237,18 @@ canvas {
         <p>🎮 Como jogar:</p>
         <p>📱 <strong>Celular:</strong> Balance para cima ou toque na tela</p>
         <p>💻 <strong>PC:</strong> Pressione ESPAÇO ou clique</p>
-        <p>🪙 Colete moedas e power-ups!</p>
-        <p>🛡️ Escudo | 🧲 Ímã | ⏱️ Slow-mo</p>
+        <p>🪙 Colete moedas para comprar chapéus!</p>
+        <p>⚡ Pegue Power-ups: Escudo, Ímã, Dash!</p>
         <p><br>Envie uma foto para usar como rosto do dino!</p>
         <button class="btn" id="startBtn">Começar</button>
     </div>
+</div>
+
+<div id="shopScreen">
+    <h2>🏪 Loja do Dino</h2>
+    <p>Suas Moedas: <strong id="shopCoinsDisplay" style="color: gold;">0</strong></p>
+    <div id="shopItems"></div>
+    <button class="btn" id="closeShopBtn" style="background:#f44336; margin-top:20px;">Fechar</button>
 </div>
 
 <div id="ui">
@@ -199,11 +267,13 @@ canvas {
 <canvas id="game"></canvas>
 
 <button id="pauseBtn">⏸️</button>
+<button id="shopBtn">🛒</button>
 
 <div id="gameOverScreen">
     <h1>Game Over! 😢</h1>
     <div id="finalScore"></div>
     <button class="btn" id="restartBtn">Jogar Novamente</button>
+    <button class="btn" id="openShopFromOver" style="background:#ff9800">Ir para Loja 🛒</button>
 </div>
 
 <script>
@@ -255,6 +325,102 @@ const jumpSound = createBeep(800, 0.1, 'square');
 const hitSound = createBeep(200, 0.3, 'sawtooth');
 const coinSound = createBeep(1200, 0.05, 'sine');
 const powerupSound = createBeep(1500, 0.15, 'triangle');
+const dashSound = createBeep(600, 0.3, 'square');
+
+/* ================= LOJA E ESTADO (PERSISTÊNCIA) ================= */
+// Carregar dados salvos ou iniciar com padrão
+let savedTotalCoins = Number(localStorage.getItem("dinopepe_coins")) || 0;
+let currentHat = localStorage.getItem("dinopepe_hat") || 'none';
+let ownedHats = JSON.parse(localStorage.getItem("dinopepe_owned_hats")) || ['none'];
+
+// Atualiza a variável global do jogo para usar no placar
+let totalCoins = savedTotalCoins; 
+
+const shopItems = [
+    { id: 'none', icon: '❌', name: 'Nada', price: 0 },
+    { id: 'party', icon: '🎉', name: 'Festa', price: 50 },
+    { id: 'crown', icon: '👑', name: 'Rei', price: 100 },
+    { id: 'cowboy', icon: '🤠', name: 'Sheriff', price: 150 },
+    { id: 'astro', icon: '🧑‍🚀', name: 'Astro', price: 300 },
+    { id: 'ninja', icon: '🥷', name: 'Ninja', price: 500 }
+];
+
+function saveGameData() {
+    localStorage.setItem("dinopepe_coins", totalCoins);
+    localStorage.setItem("dinopepe_hat", currentHat);
+    localStorage.setItem("dinopepe_owned_hats", JSON.stringify(ownedHats));
+    localStorage.setItem("dinopepe_recorde", bestScore);
+}
+
+function renderShop() {
+    const container = document.getElementById('shopItems');
+    const coinsDisplay = document.getElementById('shopCoinsDisplay');
+    container.innerHTML = '';
+    coinsDisplay.textContent = totalCoins;
+
+    shopItems.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'shop-item';
+        const isOwned = ownedHats.includes(item.id);
+        const isSelected = currentHat === item.id;
+
+        if (isOwned) div.classList.add('owned');
+        if (isSelected) div.classList.add('selected');
+
+        div.innerHTML = `
+            <div style="font-size: 30px; margin-bottom: 5px;">${item.icon}</div>
+            <div style="font-size: 12px; margin-bottom: 5px;">${item.name}</div>
+            <div style="font-size: 14px; color: ${isOwned ? '#8bc34a' : 'gold'}; font-weight: bold;">
+                ${isOwned ? 'OK' : item.price + ' 🪙'}
+            </div>
+        `;
+
+        div.onclick = () => {
+            if (isOwned) {
+                currentHat = item.id;
+                saveGameData();
+                renderShop();
+            } else {
+                if (totalCoins >= item.price) {
+                    if(confirm(`Comprar ${item.name} por ${item.price} moedas?`)) {
+                        totalCoins -= item.price;
+                        ownedHats.push(item.id);
+                        currentHat = item.id;
+                        saveGameData();
+                        renderShop();
+                    }
+                } else {
+                    alert("Moedas insuficientes! Jogue mais para ganhar.");
+                }
+            }
+        };
+
+        container.appendChild(div);
+    });
+}
+
+// Botões da Loja
+const shopScreen = document.getElementById('shopScreen');
+const shopBtn = document.getElementById('shopBtn');
+
+shopBtn.onclick = () => {
+    // Pausa se estiver jogando
+    if(gameStarted && !gameOver) {
+        gamePaused = true;
+        document.getElementById('pauseBtn').textContent = "▶️";
+    }
+    renderShop();
+    shopScreen.style.display = 'flex';
+};
+
+document.getElementById('closeShopBtn').onclick = () => {
+    shopScreen.style.display = 'none';
+};
+
+document.getElementById('openShopFromOver').onclick = () => {
+    renderShop();
+    shopScreen.style.display = 'flex';
+};
 
 /* ================= TEMAS DINÂMICOS ================= */
 function getCurrentTheme(score) {
@@ -308,7 +474,8 @@ let stars = [];
 let activePowerups = {
     shield: 0,
     magnet: 0,
-    slowmo: 0
+    slowmo: 0,
+    dash: 0
 };
 
 let powerups = [];
@@ -317,7 +484,8 @@ let powerupTimer = 0;
 function createPowerup() {
     if (powerups.length >= MAX_POWERUPS) return;
     
-    const types = ['shield', 'magnet', 'slowmo'];
+    // Adicionado 'dash' na lista
+    const types = ['shield', 'magnet', 'slowmo', 'dash'];
     const type = types[Math.floor(Math.random() * types.length)];
     
     powerups.push({
@@ -359,10 +527,15 @@ function updatePowerups() {
             dino.y < p.y + p.h &&
             dino.y + dino.h > p.y
         ) {
-            activePowerups[p.type] = 300;
+            activePowerups[p.type] = 300; // 5 segundos (a 60fps)
             powerupSound();
             createParticles(p.x + p.w/2, p.y + p.h/2, '#ffd700');
+            createFloatingText(dino.x, dino.y - 20, p.type.toUpperCase() + "!", "#fff");
             p.collected = true;
+
+            if(p.type === 'dash') {
+                dashSound();
+            }
         }
     });
     
@@ -372,7 +545,10 @@ function updatePowerups() {
         if (activePowerups[key] > 0) activePowerups[key]--;
     });
     
-    if (activePowerups.slowmo > 0) {
+    // Lógica de Velocidade com PowerUps
+    if (activePowerups.dash > 0) {
+        gameSpeed = 15; // Velocidade insana
+    } else if (activePowerups.slowmo > 0) {
         gameSpeed = baseGameSpeed * 0.5;
     } else {
         gameSpeed = baseGameSpeed;
@@ -409,11 +585,16 @@ function drawPowerups() {
             ctx.arc(p.x + p.w/2, y + p.h/2, 12, 0, Math.PI * 2);
             ctx.stroke();
             ctx.fillStyle = '#FFA726';
+            ctx.fillText('⏱️', p.x + 5, y + 22);
+        } else if (p.type === 'dash') {
+            ctx.strokeStyle = '#FFFF00';
+            ctx.lineWidth = 3;
             ctx.beginPath();
-            ctx.moveTo(p.x + 15, y + 15);
-            ctx.lineTo(p.x + 15, y + 8);
-            ctx.lineTo(p.x + 20, y + 15);
-            ctx.fill();
+            ctx.arc(p.x + p.w/2, y + p.h/2, 14, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.fillStyle = '#FFFF00';
+            ctx.font = '20px Arial';
+            ctx.fillText('⚡', p.x + 5, y + 22);
         }
         
         ctx.restore();
@@ -431,13 +612,43 @@ function drawPowerupBar() {
     if (activePowerups.slowmo > 0) {
         html += `<span class="active-powerup">⏱️ ${Math.ceil(activePowerups.slowmo/60)}s</span>`;
     }
+    if (activePowerups.dash > 0) {
+        html += `<span class="active-powerup" style="background:rgba(255,255,0,0.4)">⚡ ${Math.ceil(activePowerups.dash/60)}s</span>`;
+    }
     document.getElementById('powerupBar').innerHTML = html;
+}
+
+/* ================= TEXTO FLUTUANTE ================= */
+let floatingTexts = [];
+
+function createFloatingText(x, y, text, color) {
+    floatingTexts.push({
+        x: x,
+        y: y,
+        text: text,
+        color: color,
+        life: 40,
+        dy: -1.5
+    });
+}
+
+function updateDrawFloatingTexts() {
+    ctx.font = "bold 16px Arial";
+    floatingTexts = floatingTexts.filter(t => t.life > 0);
+    
+    floatingTexts.forEach(t => {
+        t.y += t.dy;
+        t.life--;
+        ctx.fillStyle = t.color;
+        ctx.globalAlpha = t.life / 40;
+        ctx.fillText(t.text, t.x, t.y);
+        ctx.globalAlpha = 1;
+    });
 }
 
 /* ================= MOEDAS ================= */
 let coins = [];
 let coinTimer = 0;
-let totalCoins = 0;
 
 function createCoin() {
     if (coins.length >= MAX_COINS) return;
@@ -499,7 +710,9 @@ function updateCoins() {
             score += 5;
             coinSound();
             createParticles(c.x + c.w/2, c.y + c.h/2, '#FFD700');
+            createFloatingText(c.x, c.y, "+5", "#FFD700"); // Efeito visual de texto
             c.collected = true;
+            saveGameData(); // Salva as moedas
         }
     });
     
@@ -541,14 +754,26 @@ const dino = {
     h: 50,
     vy: 0,
     jumping: false,
+    doubleJumped: false, // Controle de pulo duplo
     legFrame: 0,
 
     jump() {
-        if (!this.jumping && !gameOver && gameStarted && !gamePaused) {
+        if (!gameStarted || gameOver || gamePaused) return;
+
+        // Pulo Normal
+        if (!this.jumping) {
             this.vy = JUMP_FORCE;
             this.jumping = true;
+            this.doubleJumped = false; // Reseta pulo duplo
             jumpSound();
             createParticles(this.x + this.w/2, this.y + this.h, '#9be27d');
+        } 
+        // Pulo Duplo
+        else if (!this.doubleJumped) {
+            this.vy = JUMP_FORCE * 0.85; // Um pouco mais fraco
+            this.doubleJumped = true;
+            jumpSound();
+            createParticles(this.x + this.w/2, this.y + this.h, '#ffffff'); // Partículas brancas
         }
     },
 
@@ -560,6 +785,7 @@ const dino = {
             this.y = groundY - this.h;
             this.vy = 0;
             this.jumping = false;
+            this.doubleJumped = false; // Reseta ao tocar o chão
             if (gameStarted) this.legFrame = (this.legFrame + 0.2) % 2;
         }
     },
@@ -567,6 +793,7 @@ const dino = {
     draw() {
         ctx.save();
         
+        // Efeito do Escudo
         if (activePowerups.shield > 0) {
             ctx.strokeStyle = '#2196F3';
             ctx.lineWidth = 3;
@@ -576,22 +803,36 @@ const dino = {
             ctx.stroke();
             ctx.globalAlpha = 1;
         }
+
+        // Efeito Dash (Rastro)
+        if (activePowerups.dash > 0) {
+            ctx.globalAlpha = 0.4;
+            ctx.fillStyle = '#FFFF00';
+            ctx.beginPath();
+            ctx.ellipse(this.x - 10, this.y + 25, 20, 20, 0, 0, Math.PI*2);
+            ctx.fill();
+            ctx.globalAlpha = 1;
+        }
         
         const bodyGradient = ctx.createLinearGradient(this.x, this.y, this.x, this.y + this.h);
         bodyGradient.addColorStop(0, '#4a9d4e');
         bodyGradient.addColorStop(1, '#2d5f30');
         ctx.fillStyle = bodyGradient;
         
+        // Corpo
         ctx.beginPath();
         ctx.ellipse(this.x + 22, this.y + 35, 18, 20, 0, 0, Math.PI * 2);
         ctx.fill();
         
+        // Pescoço
         ctx.fillRect(this.x + 18, this.y + 15, 12, 22);
         
+        // Cabeça
         ctx.beginPath();
         ctx.ellipse(this.x + this.w / 2, this.y + 15, 16, 16, 0, 0, Math.PI * 2);
         ctx.fill();
         
+        // Crista
         ctx.fillStyle = '#ff6b6b';
         ctx.beginPath();
         ctx.moveTo(this.x + 16, this.y + 8);
@@ -601,6 +842,7 @@ const dino = {
         ctx.lineTo(this.x + 32, this.y + 8);
         ctx.fill();
         
+        // Rosto (Imagem ou Desenho)
         if (faceImage) {
             ctx.save();
             ctx.beginPath();
@@ -619,10 +861,22 @@ const dino = {
             ctx.fill();
         }
         
+        // Desenhar Chapéu Selecionado
+        ctx.font = "24px Arial";
+        const hatX = this.x + 8;
+        const hatY = this.y - 2;
+        if (currentHat === 'party') ctx.fillText('🎉', hatX, hatY);
+        else if (currentHat === 'crown') ctx.fillText('👑', hatX, hatY);
+        else if (currentHat === 'cowboy') ctx.fillText('🤠', hatX, hatY);
+        else if (currentHat === 'astro') ctx.fillText('🧑‍🚀', hatX, hatY);
+        else if (currentHat === 'ninja') ctx.fillText('🥷', hatX, hatY);
+
+        // Braços
         ctx.fillStyle = '#4a9d4e';
         ctx.fillRect(this.x + 8, this.y + 28, 6, 12);
         ctx.fillRect(this.x + 30, this.y + 28, 6, 12);
         
+        // Pernas (Animação)
         const legOffset = this.jumping ? 0 : Math.floor(this.legFrame) * 4;
         ctx.fillRect(this.x + 14, this.y + 50, 8, 15);
         ctx.fillRect(this.x + 22 + legOffset, this.y + 50, 8, 15);
@@ -825,34 +1079,31 @@ const obstacleTypes = [
     { w: 24, h: 35, color: '#8b4513', type: 'ground' },
     { w: 30, h: 45, color: '#654321', type: 'ground' },
     { w: 35, h: 28, color: '#a0522d', type: 'ground' },
-    { w: 40, h: 25, color: '#8B4513', type: 'flying' }
+    { w: 40, h: 25, color: '#8B4513', type: 'flying' }, // Pterodáctilo antigo
+    { w: 30, h: 25, color: '#FF0000', type: 'bird' }   // NOVO: Pássaro Triângulo Vermelho
 ];
 
 function createObstacle() {
     const type = obstacleTypes[Math.floor(Math.random() * obstacleTypes.length)];
     
+    let obsY = groundY - type.h;
+    
     if (type.type === 'flying') {
-        obstacles.push({
-            x: canvas.width + 20,
-            y: groundY - 100 - Math.random() * 50,
-            w: type.w,
-            h: type.h,
-            color: type.color,
-            type: 'flying',
-            wingFrame: 0,
-            scored: false
-        });
-    } else {
-        obstacles.push({
-            x: canvas.width + 20,
-            y: groundY - type.h,
-            w: type.w,
-            h: type.h,
-            color: type.color,
-            type: 'ground',
-            scored: false
-        });
+        obsY = groundY - 100 - Math.random() * 50;
+    } else if (type.type === 'bird') {
+        obsY = groundY - 60 - Math.random() * 80; // Altura variável para o pássaro
     }
+
+    obstacles.push({
+        x: canvas.width + 20,
+        y: obsY,
+        w: type.w,
+        h: type.h,
+        color: type.color,
+        type: type.type,
+        wingFrame: 0,
+        scored: false
+    });
 }
 
 function updateObstacles() {
@@ -872,17 +1123,21 @@ function updateObstacles() {
         if (o.type === 'flying') {
             o.wingFrame += 0.3;
             o.y += Math.sin(o.wingFrame) * 1.5;
+        } 
+        else if (o.type === 'bird') {
+            o.wingFrame += 0.5;
+            o.y += Math.sin(o.wingFrame) * 2; // Movimento mais rápido vertical
         }
         
         if (!o.scored && o.x + o.w < dino.x) {
             o.scored = true;
             score += 10;
-            coinSound();
         }
     });
     
     obstacles = obstacles.filter(o => o.x + o.w > 0);
     
+    // Aumenta a velocidade base progressivamente
     baseGameSpeed = 5 + Math.floor(score / 100) * 0.5;
 }
 
@@ -890,7 +1145,31 @@ function drawObstacles() {
     obstacles.forEach(o => {
         ctx.fillStyle = o.color;
         
-        if (o.type === 'flying') {
+        if (o.type === 'bird') {
+            // Desenha Pássaro Triângulo Vermelho
+            ctx.save();
+            ctx.translate(o.x + o.w/2, o.y + o.h/2);
+            ctx.fillStyle = '#FF4444';
+            ctx.beginPath();
+            ctx.moveTo(-15, 0); // Ponta esquerda
+            ctx.lineTo(15, -10); // Asa Cima
+            ctx.lineTo(15, 10); // Asa Baixo
+            ctx.closePath();
+            ctx.fill();
+            
+            // Olho
+            ctx.fillStyle = 'white';
+            ctx.beginPath();
+            ctx.arc(-5, -2, 4, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = 'black';
+            ctx.beginPath();
+            ctx.arc(-7, -2, 1.5, 0, Math.PI*2);
+            ctx.fill();
+            
+            ctx.restore();
+
+        } else if (o.type === 'flying') {
             ctx.save();
             ctx.translate(o.x + o.w/2, o.y + o.h/2);
             
@@ -957,14 +1236,16 @@ function drawScore() {
 
 /* ================= COLISÃO ================= */
 function checkCollision() {
-    if (activePowerups.shield > 0) return false;
+    // Se tiver Escudo ou Dash, não morre
+    if (activePowerups.shield > 0 || activePowerups.dash > 0) return false;
     
     for (let o of obstacles) {
+        // Reduz a hitbox ligeiramente para ser justo
         if (
-            dino.x + 8 < o.x + o.w &&
-            dino.x + dino.w - 8 > o.x &&
-            dino.y + dino.h - 4 > o.y &&
-            dino.y + 8 < o.y + o.h
+            dino.x + 12 < o.x + o.w &&
+            dino.x + dino.w - 12 > o.x &&
+            dino.y + dino.h - 8 > o.y &&
+            dino.y + 12 < o.y + o.h
         ) {
             return true;
         }
@@ -984,7 +1265,7 @@ function endGame() {
     const finalScoreNum = Math.floor(score);
     if (finalScoreNum > bestScore) {
         bestScore = finalScoreNum;
-        localStorage.setItem("dinopepe_recorde", bestScore);
+        saveGameData(); // Salva tudo ao fim do jogo
     }
 
     document.getElementById("finalScore").innerHTML = 
@@ -993,6 +1274,7 @@ function endGame() {
         `Recorde: <strong>${bestScore}</strong>`;
     document.getElementById("gameOverScreen").style.display = "flex";
     document.getElementById("pauseBtn").style.display = "none";
+    document.getElementById("shopBtn").style.display = "none";
 }
 
 function loop() {
@@ -1037,6 +1319,7 @@ function loop() {
     drawObstacles();
     drawCoins();
     drawPowerups();
+    updateDrawFloatingTexts(); // Desenha os textos flutuantes
     dino.draw();
     drawScore();
     drawPowerupBar();
@@ -1156,6 +1439,7 @@ document.getElementById("removePhoto").onclick = () => {
 document.getElementById("startBtn").onclick = () => {
     document.getElementById("tutorialScreen").style.display = "none";
     gameStarted = true;
+    document.getElementById("shopBtn").style.display = "block";
     
     if (typeof DeviceOrientationEvent !== 'undefined' && 
         typeof DeviceOrientationEvent.requestPermission === 'function') {
@@ -1174,7 +1458,7 @@ function resetGame() {
     gameStarted = false;
     gamePaused = false;
     score = 0;
-    totalCoins = 0;
+    // Não resetamos totalCoins, pois queremos acumular
     gameSpeed = 5;
     baseGameSpeed = 5;
     obstacles = [];
@@ -1184,20 +1468,24 @@ function resetGame() {
     coinTimer = 0;
     powerups = [];
     powerupTimer = 0;
-    activePowerups = { shield: 0, magnet: 0, slowmo: 0 };
+    activePowerups = { shield: 0, magnet: 0, slowmo: 0, dash: 0 };
+    floatingTexts = [];
     
     currentTheme = getCurrentTheme(0);
     
     dino.y = 0;
     dino.vy = 0;
     dino.jumping = false;
+    dino.doubleJumped = false;
     dino.legFrame = 0;
     
     document.getElementById("gameOverScreen").style.display = "none";
     document.getElementById("pauseBtn").style.display = "none";
+    document.getElementById("shopBtn").style.display = "none"; // Só aparece quando começar
     
     setTimeout(() => {
         gameStarted = true;
+        document.getElementById("shopBtn").style.display = "block";
     }, 500);
 }
 
