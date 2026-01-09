@@ -349,7 +349,10 @@ let gameSpeed = 5;
 let baseGameSpeed = 5;
 let gameStarted = false;
 let gamePaused = false;
-let gameOver = false; // CORREÇÃO: Variável declarada explicitamente para evitar bugs globais
+let gameOver = false;
+let score = 0;
+let animFrame = 0;
+let groundY = 0;
 
 /* ================= SISTEMA DE ÁUDIO (CORRIGIDO PARA iOS) ================= */
 let soundEnabled = true;
