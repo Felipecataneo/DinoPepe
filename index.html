@@ -1203,39 +1203,44 @@ document.getElementById("removePhoto").onclick = () => {
     photoPreview.style.display = "none"; fileInput.style.display = "inline-block"; fileInput.value = "";
 };
 
-/* ================= BOOTSTRAP ================= */
+/* ================= BOOTSTRAP (CORRIGIDO) ================= */
 document.getElementById("startBtn").onclick = () => {
     document.getElementById("tutorialScreen").style.display = "none";
     gameStarted = true;
+    gamePaused = false;
+    gameOver = false;
+    
     document.getElementById("shopBtn").style.display = "flex";
     document.getElementById("soundBtn").style.display = "flex";
     document.getElementById("pauseBtn").style.display = "flex";
     
-    // Tenta desbloquear áudio e permissões
     unlockAudio();
+    if(soundEnabled) bgMusic.play().catch(()=>{});
+    
     if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
         DeviceOrientationEvent.requestPermission().catch(console.error);
     }
 };
 
 function resetGame() {
-    gameOver = false; gameStarted = false; gamePaused = false;
+    gameOver = false; 
+    gameStarted = true; // CORREÇÃO: deve ser true
+    gamePaused = false;
     score = 0; gameSpeed = 5; baseGameSpeed = 5; currentPhase = 1;
-    obstacles = []; obstacleTimer = 0; particles = []; coins = []; coinTimer = 0; powerups = []; powerupTimer = 0;
-    activePowerups = { shield: 0, magnet: 0, slowmo: 0, dash: 0 }; floatingTexts = [];
+    obstacles = []; obstacleTimer = 0; particles = []; coins = []; coinTimer = 0; 
+    powerups = []; powerupTimer = 0;
+    activePowerups = { shield: 0, magnet: 0, slowmo: 0, dash: 0 }; 
+    floatingTexts = [];
     currentTheme = getCurrentTheme(0);
     dino.y = 0; dino.vy = 0; dino.jumping = false; dino.doubleJumped = false; dino.legFrame = 0;
     
     document.getElementById("gameOverScreen").style.display = "none";
-    document.getElementById("pauseBtn").style.display = "none";
-    document.getElementById("shopBtn").style.display = "none";
+    document.getElementById("tutorialScreen").style.display = "none"; // ADICIONAR
+    document.getElementById("pauseBtn").style.display = "flex";
+    document.getElementById("shopBtn").style.display = "flex";
+    document.getElementById("soundBtn").style.display = "flex";
     
-    setTimeout(() => {
-        gameStarted = true;
-        document.getElementById("shopBtn").style.display = "flex";
-        document.getElementById("pauseBtn").style.display = "flex";
-        if(soundEnabled) bgMusic.play().catch(()=>{});
-    }, 500);
+    if(soundEnabled) bgMusic.play().catch(()=>{});
 }
 
 document.getElementById("restartBtn").onclick = resetGame;
@@ -1245,15 +1250,11 @@ pauseBtn.onclick = () => {
     if (!gameStarted || gameOver) return;
     gamePaused = !gamePaused;
     pauseBtn.textContent = gamePaused ? "▶️" : "⏸️";
-    if(gamePaused) bgMusic.pause(); else if(soundEnabled) bgMusic.play().catch(()=>{});
+    if(gamePaused) bgMusic.pause(); 
+    else if(soundEnabled) bgMusic.play().catch(()=>{});
 };
 
-setInterval(() => {
-    if (gameStarted && !gameOver && pauseBtn.style.display === "none") {
-        pauseBtn.style.display = "flex"; pauseBtn.textContent = "⏸️";
-    }
-}, 1000);
-
+// Inicia o loop imediatamente
 loop();
 </script>
 </body>
