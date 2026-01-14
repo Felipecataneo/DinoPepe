@@ -6,13 +6,13 @@
 <title>DinoPepe: Ultimate Edition 🦖</title>
 
 <link rel="manifest" href="manifest.json">
-
 <meta name="theme-color" content="#4caf50">
 
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="DinoPepe">
+
 
 <style>
 * {
@@ -49,12 +49,10 @@ canvas {
     pointer-events: none;
 }
 
-/* Reativar pointer events para botões específicos na UI */
 #ui input, #ui button, #ui label {
     pointer-events: auto;
 }
 
-/* Botões Circulares do Topo */
 .circle-btn {
     position: fixed;
     width: 50px;
@@ -66,7 +64,7 @@ canvas {
     z-index: 100;
     font-size: 1.5rem;
     box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-    display: none; /* Controlado via JS */
+    display: none;
     transition: transform 0.1s;
     align-items: center;
     justify-content: center;
@@ -84,14 +82,14 @@ canvas {
 
 #soundBtn {
     top: 10px;
-    right: 70px; /* Ao lado do pause */
+    right: 70px;
     background: rgba(33, 150, 243, 0.9);
     font-size: 1.2rem;
 }
 
 #shopBtn {
     top: 70px;
-    right: 10px; /* Abaixo do pause */
+    right: 10px;
     background: rgba(255, 152, 0, 0.9);
 }
 
@@ -146,7 +144,6 @@ canvas {
     font-size: 11px;
 }
 
-/* Telas de Overlay (Game Over, Tutorial, Loja) */
 #gameOverScreen, #tutorialScreen, #shopScreen {
     position: fixed;
     inset: 0;
@@ -206,7 +203,6 @@ canvas {
     line-height: 1.5;
 }
 
-/* Estilos da Loja */
 #shopItems {
     display: flex;
     gap: 15px;
@@ -245,7 +241,11 @@ canvas {
     transform: scale(1.05);
 }
 
-/* Anúncio de Fase */
+.shop-tab-active {
+    box-shadow: 0 0 20px rgba(255,255,255,0.6) !important;
+    transform: scale(1.1);
+}
+
 #phaseText {
     position: fixed;
     top: 40%;
@@ -272,7 +272,6 @@ canvas {
 
 <body>
 
-<!-- Elemento de Audio Oculto -->
 <audio id="bgMusic" loop preload="auto">
     <source src="fundo.mp3" type="audio/mpeg">
 </audio>
@@ -287,6 +286,7 @@ canvas {
         <p>👆 Ou toque na tela / Espaço</p>
         <p>🪙 Junte moedas para a Loja</p>
         <p>⚡ Use o Dash para destruir inimigos!</p>
+        <p>🔥 Faça COMBOS para mais pontos!</p>
         <p>💾 Sua foto e recorde são salvos!</p>
         <button class="btn" id="startBtn">Começar Aventura</button>
     </div>
@@ -294,7 +294,14 @@ canvas {
 
 <div id="shopScreen">
     <h2>🏪 Loja do Dino</h2>
-    <p>Moedas: <strong id="shopCoinsDisplay" style="color: gold;">0</strong></p>
+    <p>Moedas: <strong id="shopCoinsDisplay" style="color: gold;">0</strong> | Level: <strong id="shopLevelDisplay">1</strong></p>
+    
+    <div style="display: flex; gap: 10px; margin: 15px 0; justify-content: center;">
+        <button class="btn" id="tabHats" style="font-size: 1rem; padding: 8px 20px;">🎩 Chapéus</button>
+        <button class="btn" id="tabSkins" style="font-size: 1rem; padding: 8px 20px; background: #9c27b0;">🎨 Skins</button>
+        <button class="btn" id="tabAchievements" style="font-size: 1rem; padding: 8px 20px; background: #ff9800;">🏆 Conquistas</button>
+    </div>
+    
     <div id="shopItems"></div>
     <button class="btn" id="closeShopBtn" style="background:#f44336; margin-top:20px;">Voltar</button>
 </div>
@@ -314,7 +321,6 @@ canvas {
 
 <canvas id="game"></canvas>
 
-<!-- Botões de Controle -->
 <button id="pauseBtn" class="circle-btn">⏸️</button>
 <button id="soundBtn" class="circle-btn">🔊</button>
 <button id="shopBtn" class="circle-btn">🛒</button>
@@ -327,7 +333,6 @@ canvas {
 </div>
 
 <script>
-/* ================= CONFIGURAÇÃO DO CANVAS ================= */
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
@@ -338,7 +343,6 @@ function resize() {
 resize();
 window.addEventListener("resize", resize);
 
-/* ================= VARIÁVEIS DO JOGO ================= */
 const GRAVITY = 0.65;
 const JUMP_FORCE = -13.5;
 const MAX_PARTICLES = 50;
@@ -353,27 +357,20 @@ let gameOver = false;
 let score = 0;
 let animFrame = 0;
 
-
-/* ================= SISTEMA DE ÁUDIO (CORRIGIDO PARA iOS) ================= */
 let soundEnabled = true;
 const bgMusic = document.getElementById('bgMusic');
 bgMusic.volume = 0.4;
 let audioUnlocked = false;
 
-// Função para desbloquear o áudio no primeiro toque do usuário
 function unlockAudio() {
     if (audioUnlocked) return;
     
-    // Tenta tocar e pausa imediatamente para "aquecer" o engine de áudio
     bgMusic.play().then(() => {
         bgMusic.pause();
         bgMusic.currentTime = 0;
         audioUnlocked = true;
-    }).catch(e => {
-        console.log("Aguardando interação do usuário para áudio...");
-    });
+    }).catch(e => {});
 
-    // Cria um contexto vazio para desbloquear WebAudioAPI
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     if (AudioContext) {
         const tempCtx = new AudioContext();
@@ -381,12 +378,10 @@ function unlockAudio() {
     }
 }
 
-// Adiciona listeners para desbloqueio
 document.addEventListener('touchstart', unlockAudio, {once:true});
 document.addEventListener('click', unlockAudio, {once:true});
 document.addEventListener('keydown', unlockAudio, {once:true});
 
-// Sintetizador de sons (Bips)
 function createBeep(freq, duration, type = 'sine') {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     return () => {
@@ -431,12 +426,21 @@ function toggleSound() {
 }
 document.getElementById('soundBtn').onclick = toggleSound;
 
-/* ================= LOJA E DADOS (PERSISTÊNCIA) ================= */
 let savedTotalCoins = Number(localStorage.getItem("dinopepe_coins")) || 0;
 let currentHat = localStorage.getItem("dinopepe_hat") || 'none';
 let ownedHats = JSON.parse(localStorage.getItem("dinopepe_owned_hats")) || ['none'];
 let totalCoins = savedTotalCoins; 
 let bestScore = Number(localStorage.getItem("dinopepe_recorde")) || 0;
+
+let currentSkin = localStorage.getItem("dinopepe_skin") || 'default';
+let ownedSkins = JSON.parse(localStorage.getItem("dinopepe_owned_skins")) || ['default'];
+
+let combo = 0;
+let maxCombo = Number(localStorage.getItem("dinopepe_max_combo")) || 0;
+let comboTimer = 0;
+let achievements = JSON.parse(localStorage.getItem("dinopepe_achievements")) || [];
+let playerXP = Number(localStorage.getItem("dinopepe_xp")) || 0;
+let playerLevel = Math.floor(playerXP / 1000) + 1;
 
 const shopItems = [
     { id: 'none', icon: '❌', name: 'Nada', price: 0 },
@@ -444,63 +448,201 @@ const shopItems = [
     { id: 'crown', icon: '👑', name: 'Rei', price: 100 },
     { id: 'cowboy', icon: '🤠', name: 'Sheriff', price: 150 },
     { id: 'astro', icon: '🧑‍🚀', name: 'Astro', price: 300 },
-    { id: 'ninja', icon: '🥷', name: 'Ninja', price: 500 }
+    { id: 'ninja', icon: '🥷', name: 'Ninja', price: 500 },
+    { id: 'fire', icon: '🔥', name: 'Fire Beast', price: 800 },
+    { id: 'cyber', icon: '🤖', name: 'Cyborg', price: 1200 },
+    { id: 'demon', icon: '😈', name: 'Dark Lord', price: 2000 }
 ];
+
+const skinShop = [
+    { id: 'default', name: 'Clássico', price: 0, colors: {body: '#4a9d4e', crest: '#ff6b6b'} },
+    { id: 'gold', name: 'Golden Dino', price: 500, colors: {body: '#FFD700', crest: '#FFA500'} },
+    { id: 'shadow', name: 'Shadow Beast', price: 1000, colors: {body: '#2c3e50', crest: '#e74c3c'} },
+    { id: 'neon', name: 'Neon Cyber', price: 1500, colors: {body: '#00ffff', crest: '#ff00ff'} },
+    { id: 'lava', name: 'Lava Monster', price: 2500, colors: {body: '#ff4500', crest: '#8b0000'} },
+    { id: 'ice', name: 'Ice King', price: 3500, colors: {body: '#00bfff', crest: '#ffffff'} }
+];
+
+const achievementsList = [
+    { id: 'first_blood', name: 'Primeira Morte', desc: 'Destrua um inimigo com Dash', icon: '💀', xp: 50 },
+    { id: 'collector', name: 'Colecionador', desc: 'Colete 100 moedas', icon: '💰', xp: 100 },
+    { id: 'survivor', name: 'Sobrevivente', desc: 'Alcance 1000 pontos', icon: '🏆', xp: 200 },
+    { id: 'combo_king', name: 'Rei do Combo', desc: 'Faça um combo x10', icon: '⚡', xp: 150 },
+    { id: 'speed_demon', name: 'Demônio da Velocidade', desc: 'Alcance fase 4', icon: '🚀', xp: 300 },
+    { id: 'millionaire', name: 'Milionário', desc: 'Acumule 1000 moedas', icon: '🤑', xp: 500 }
+];
+
+function unlockAchievement(id) {
+    if(achievements.includes(id)) return;
+    const ach = achievementsList.find(a => a.id === id);
+    if(!ach) return;
+    
+    achievements.push(id);
+    playerXP += ach.xp;
+    playerLevel = Math.floor(playerXP / 1000) + 1;
+    localStorage.setItem("dinopepe_achievements", JSON.stringify(achievements));
+    localStorage.setItem("dinopepe_xp", playerXP);
+    
+    createFloatingText(canvas.width/2, 100, `🎉 ${ach.name}! +${ach.xp}XP`, "#FFD700");
+    powerupSound();
+}
+
+function updateCombo() {
+    if(comboTimer > 0) {
+        comboTimer--;
+        if(comboTimer === 0) combo = 0;
+    }
+}
+
+function addCombo() {
+    combo++;
+    comboTimer = 120;
+    if(combo > maxCombo) {
+        maxCombo = combo;
+        localStorage.setItem("dinopepe_max_combo", maxCombo);
+    }
+    if(combo === 10) unlockAchievement('combo_king');
+}
 
 function saveGameData() {
     localStorage.setItem("dinopepe_coins", totalCoins);
     localStorage.setItem("dinopepe_hat", currentHat);
     localStorage.setItem("dinopepe_owned_hats", JSON.stringify(ownedHats));
     localStorage.setItem("dinopepe_recorde", bestScore);
+    localStorage.setItem("dinopepe_skin", currentSkin);
+    localStorage.setItem("dinopepe_owned_skins", JSON.stringify(ownedSkins));
 }
 
 function renderShop() {
     const container = document.getElementById('shopItems');
     const coinsDisplay = document.getElementById('shopCoinsDisplay');
+    const levelDisplay = document.getElementById('shopLevelDisplay');
     container.innerHTML = '';
     coinsDisplay.textContent = totalCoins;
+    levelDisplay.textContent = playerLevel;
 
-    shopItems.forEach(item => {
-        const div = document.createElement('div');
-        div.className = 'shop-item';
-        const isOwned = ownedHats.includes(item.id);
-        const isSelected = currentHat === item.id;
+    const activeTabs = document.querySelectorAll('.shop-tab-active');
+    let tabName = 'tabHats';
+    if(activeTabs.length > 0) {
+        tabName = activeTabs[0].id;
+    }
 
-        if (isOwned) div.classList.add('owned');
-        if (isSelected) div.classList.add('selected');
+    if(tabName === 'tabHats') {
+        shopItems.forEach(item => {
+            const div = document.createElement('div');
+            div.className = 'shop-item';
+            const isOwned = ownedHats.includes(item.id);
+            const isSelected = currentHat === item.id;
 
-        div.innerHTML = `
-            <div style="font-size: 30px; margin-bottom: 5px;">${item.icon}</div>
-            <div style="font-size: 12px; margin-bottom: 5px;">${item.name}</div>
-            <div style="font-size: 14px; color: ${isOwned ? '#8bc34a' : 'gold'}; font-weight: bold;">
-                ${isOwned ? 'OK' : item.price + ' 🪙'}
-            </div>
-        `;
+            if (isOwned) div.classList.add('owned');
+            if (isSelected) div.classList.add('selected');
 
-        div.onclick = () => {
-            if (isOwned) {
-                currentHat = item.id;
-                saveGameData();
-                renderShop();
-            } else {
-                if (totalCoins >= item.price) {
-                    if(confirm(`Comprar ${item.name} por ${item.price} moedas?`)) {
-                        totalCoins -= item.price;
-                        ownedHats.push(item.id);
-                        currentHat = item.id;
-                        saveGameData();
-                        renderShop();
-                    }
+            div.innerHTML = `
+                <div style="font-size: 30px; margin-bottom: 5px;">${item.icon}</div>
+                <div style="font-size: 12px; margin-bottom: 5px;">${item.name}</div>
+                <div style="font-size: 14px; color: ${isOwned ? '#8bc34a' : 'gold'}; font-weight: bold;">
+                    ${isOwned ? 'OK' : item.price + ' 🪙'}
+                </div>
+            `;
+
+            div.onclick = () => {
+                if (isOwned) {
+                    currentHat = item.id;
+                    saveGameData();
+                    renderShop();
                 } else {
-                    alert("Moedas insuficientes! Jogue mais para ganhar.");
+                    if (totalCoins >= item.price) {
+                        if(confirm(`Comprar ${item.name} por ${item.price} moedas?`)) {
+                            totalCoins -= item.price;
+                            ownedHats.push(item.id);
+                            currentHat = item.id;
+                            saveGameData();
+                            renderShop();
+                        }
+                    } else {
+                        alert("Moedas insuficientes! Jogue mais para ganhar.");
+                    }
                 }
-            }
-        };
-        container.appendChild(div);
-    });
+            };
+            container.appendChild(div);
+        });
+    } else if(tabName === 'tabSkins') {
+        skinShop.forEach(skin => {
+            const div = document.createElement('div');
+            div.className = 'shop-item';
+            const isOwned = ownedSkins.includes(skin.id);
+            const isSelected = currentSkin === skin.id;
+
+            if (isOwned) div.classList.add('owned');
+            if (isSelected) div.classList.add('selected');
+
+            div.innerHTML = `
+                <div style="font-size: 12px; margin-bottom: 5px; color: ${skin.colors.body}; font-weight: bold;">■ ${skin.name}</div>
+                <div style="width: 60px; height: 40px; background: ${skin.colors.body}; border: 2px solid ${skin.colors.crest}; border-radius: 8px; margin: 5px auto;"></div>
+                <div style="font-size: 14px; color: ${isOwned ? '#8bc34a' : 'gold'}; font-weight: bold;">
+                    ${isOwned ? 'OK' : skin.price + ' 🪙'}
+                </div>
+            `;
+
+            div.onclick = () => {
+                if (isOwned) {
+                    currentSkin = skin.id;
+                    saveGameData();
+                    renderShop();
+                } else {
+                    if (totalCoins >= skin.price) {
+                        if(confirm(`Comprar ${skin.name} por ${skin.price} moedas?`)) {
+                            totalCoins -= skin.price;
+                            ownedSkins.push(skin.id);
+                            currentSkin = skin.id;
+                            saveGameData();
+                            renderShop();
+                        }
+                    } else {
+                        alert("Moedas insuficientes!");
+                    }
+                }
+            };
+            container.appendChild(div);
+        });
+    } else if(tabName === 'tabAchievements') {
+        achievementsList.forEach(ach => {
+            const div = document.createElement('div');
+            div.className = 'shop-item';
+            const isUnlocked = achievements.includes(ach.id);
+            if(isUnlocked) div.classList.add('owned');
+
+            div.innerHTML = `
+                <div style="font-size: 30px; margin-bottom: 5px; filter: ${isUnlocked ? 'none' : 'grayscale(100%)'};">${ach.icon}</div>
+                <div style="font-size: 11px; margin-bottom: 3px; font-weight: bold;">${ach.name}</div>
+                <div style="font-size: 10px; color: #aaa;">${ach.desc}</div>
+                <div style="font-size: 12px; color: ${isUnlocked ? '#8bc34a' : '#666'}; margin-top: 5px;">
+                    ${isUnlocked ? '✓ Desbloqueado' : '+' + ach.xp + ' XP'}
+                </div>
+            `;
+            container.appendChild(div);
+        });
+    }
 }
 
-// Controles da Loja UI
+document.getElementById('tabHats').onclick = function() {
+    document.querySelectorAll('#shopScreen .btn').forEach(b => b.classList.remove('shop-tab-active'));
+    this.classList.add('shop-tab-active');
+    renderShop();
+};
+
+document.getElementById('tabSkins').onclick = function() {
+    document.querySelectorAll('#shopScreen .btn').forEach(b => b.classList.remove('shop-tab-active'));
+    this.classList.add('shop-tab-active');
+    renderShop();
+};
+
+document.getElementById('tabAchievements').onclick = function() {
+    document.querySelectorAll('#shopScreen .btn').forEach(b => b.classList.remove('shop-tab-active'));
+    this.classList.add('shop-tab-active');
+    renderShop();
+};
+
 const shopScreen = document.getElementById('shopScreen');
 const shopBtn = document.getElementById('shopBtn');
 
@@ -509,6 +651,7 @@ shopBtn.onclick = () => {
         gamePaused = true;
         document.getElementById('pauseBtn').textContent = "▶️";
     }
+    document.getElementById('tabHats').classList.add('shop-tab-active');
     renderShop();
     shopScreen.style.display = 'flex';
 };
@@ -518,11 +661,11 @@ document.getElementById('closeShopBtn').onclick = () => {
 };
 
 document.getElementById('openShopFromOver').onclick = () => {
+    document.getElementById('tabHats').classList.add('shop-tab-active');
     renderShop();
     shopScreen.style.display = 'flex';
 };
 
-/* ================= FASES E TEMAS ================= */
 let currentPhase = 1;
 
 function showPhaseText(text) {
@@ -536,7 +679,6 @@ function showPhaseText(text) {
 }
 
 function getCurrentTheme(score) {
-    // Lógica para mudar as cores e o ambiente baseado na fase
     if (score < 500) {
         if(currentPhase !== 1) { currentPhase = 1; showPhaseText("FASE 1: FAZENDA 🚜"); }
         return {
@@ -567,7 +709,6 @@ function getCurrentTheme(score) {
 let currentTheme = getCurrentTheme(0);
 let stars = [];
 
-/* ================= POWER-UPS ================= */
 let activePowerups = { shield: 0, magnet: 0, slowmo: 0, dash: 0 };
 let powerups = [];
 let powerupTimer = 0;
@@ -597,7 +738,6 @@ function updatePowerups() {
         p.x -= gameSpeed;
         p.float += 0.1;
         
-        // Magnetismo se powerup ativo
         if (activePowerups.magnet > 0) {
             const dx = dino.x - p.x;
             const dy = dino.y - p.y;
@@ -608,17 +748,15 @@ function updatePowerups() {
             }
         }
         
-        // Coleta
         if (
             dino.x < p.x + p.w && dino.x + dino.w > p.x &&
             dino.y < p.y + p.h && dino.y + dino.h > p.y
         ) {
-            activePowerups[p.type] = 300; // Duração
+            activePowerups[p.type] = 300;
             powerupSound();
             createParticles(p.x + p.w/2, p.y + p.h/2, '#ffd700');
             createFloatingText(dino.x, dino.y - 20, p.type.toUpperCase() + "!", "#fff");
             p.collected = true;
-
             if(p.type === 'dash') dashSound();
         }
     });
@@ -629,9 +767,8 @@ function updatePowerups() {
         if (activePowerups[key] > 0) activePowerups[key]--;
     });
     
-    // Efeitos
     if (activePowerups.dash > 0) {
-        gameSpeed = 15; // Velocidade insana
+        gameSpeed = 15;
     } else if (activePowerups.slowmo > 0) {
         gameSpeed = baseGameSpeed * 0.5;
     } else {
@@ -675,7 +812,6 @@ function drawPowerupBar() {
     document.getElementById('powerupBar').innerHTML = html;
 }
 
-/* ================= TEXTO FLUTUANTE ================= */
 let floatingTexts = [];
 function createFloatingText(x, y, text, color) {
     floatingTexts.push({ x: x, y: y, text: text, color: color, life: 40, dy: -1.5 });
@@ -692,7 +828,6 @@ function updateDrawFloatingTexts() {
     });
 }
 
-/* ================= MOEDAS ================= */
 let coins = [];
 let coinTimer = 0;
 
@@ -719,13 +854,12 @@ function updateCoins() {
         c.x -= gameSpeed;
         c.spin += 0.15;
         
-        // CORREÇÃO: Magneto suave
         if (activePowerups.magnet > 0) {
             const dx = dino.x - c.x;
             const dy = dino.y - c.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
             if (dist < 200) {
-                c.x += (dino.x - c.x) * 0.1; // Suave
+                c.x += (dino.x - c.x) * 0.1;
                 c.y += (dino.y - c.y) * 0.1;
             }
         }
@@ -735,10 +869,14 @@ function updateCoins() {
             dino.y < c.y + c.h && dino.y + dino.h > c.y
         ) {
             totalCoins++; score += 5; coinSound();
+            addCombo();
             createParticles(c.x + c.w/2, c.y + c.h/2, '#FFD700');
             createFloatingText(c.x, c.y, "+5", "#FFD700");
             c.collected = true;
             saveGameData();
+            
+            if(totalCoins >= 100 && !achievements.includes('collector')) unlockAchievement('collector');
+            if(totalCoins >= 1000 && !achievements.includes('millionaire')) unlockAchievement('millionaire');
         }
     });
     
@@ -756,8 +894,18 @@ function drawCoins() {
     });
 }
 
-/* ================= DINO ================= */
 let faceImage = null;
+
+function shadeColor(color, percent) {
+    const num = parseInt(color.replace("#",""), 16);
+    const amt = Math.round(2.55 * percent);
+    const R = (num >> 16) + amt;
+    const G = (num >> 8 & 0x00FF) + amt;
+    const B = (num & 0x0000FF) + amt;
+    return "#" + (0x1000000 + (R<255?R<1?0:R:255)*0x10000 +
+        (G<255?G<1?0:G:255)*0x100 + (B<255?B<1?0:B:255))
+        .toString(16).slice(1);
+}
 
 const dino = {
     x: 80, y: 0, w: 44, h: 50, vy: 0, jumping: false, doubleJumped: false, legFrame: 0,
@@ -795,7 +943,6 @@ const dino = {
     draw() {
         ctx.save();
         
-        // Efeito Escudo
         if (activePowerups.shield > 0) {
             ctx.strokeStyle = '#2196F3'; ctx.lineWidth = 3;
             ctx.globalAlpha = 0.5 + Math.sin(animFrame * 0.2) * 0.3;
@@ -803,30 +950,31 @@ const dino = {
             ctx.stroke(); ctx.globalAlpha = 1;
         }
 
-        // Efeito Dash (Rastro)
         if (activePowerups.dash > 0) {
             ctx.globalAlpha = 0.4; ctx.fillStyle = '#FFFF00';
             ctx.beginPath(); ctx.ellipse(this.x - 10, this.y + 25, 20, 20, 0, 0, Math.PI*2);
             ctx.fill(); ctx.globalAlpha = 1;
         }
         
+        const activeSkin = skinShop.find(s => s.id === currentSkin) || skinShop[0];
+        const bodyColor = activeSkin.colors.body;
+        const crestColor = activeSkin.colors.crest;
+        
         const bodyGradient = ctx.createLinearGradient(this.x, this.y, this.x, this.y + this.h);
-        bodyGradient.addColorStop(0, '#4a9d4e'); bodyGradient.addColorStop(1, '#2d5f30');
+        bodyGradient.addColorStop(0, bodyColor);
+        bodyGradient.addColorStop(1, shadeColor(bodyColor, -30));
         ctx.fillStyle = bodyGradient;
         
-        // Corpo e Cabeça
         ctx.beginPath(); ctx.ellipse(this.x + 22, this.y + 35, 18, 20, 0, 0, Math.PI * 2); ctx.fill();
         ctx.fillRect(this.x + 18, this.y + 15, 12, 22);
         ctx.beginPath(); ctx.ellipse(this.x + this.w / 2, this.y + 15, 16, 16, 0, 0, Math.PI * 2); ctx.fill();
         
-        // Crista
-        ctx.fillStyle = '#ff6b6b';
+        ctx.fillStyle = crestColor;
         ctx.beginPath();
         ctx.moveTo(this.x + 16, this.y + 8); ctx.lineTo(this.x + 20, this.y);
         ctx.lineTo(this.x + 24, this.y + 6); ctx.lineTo(this.x + 28, this.y + 2);
         ctx.lineTo(this.x + 32, this.y + 8); ctx.fill();
         
-        // Rosto
         if (faceImage) {
             ctx.save(); ctx.beginPath(); ctx.arc(this.x + this.w / 2, this.y + 15, 12, 0, Math.PI * 2); ctx.clip();
             ctx.drawImage(faceImage, this.x + 12, this.y + 3, 24, 24); ctx.restore();
@@ -835,7 +983,6 @@ const dino = {
             ctx.fillStyle = 'black'; ctx.beginPath(); ctx.arc(this.x + 29, this.y + 12, 2, 0, Math.PI * 2); ctx.fill();
         }
         
-        // Chapéu
         ctx.font = "24px Arial";
         const hatX = this.x + 8; const hatY = this.y - 2;
         if (currentHat === 'party') ctx.fillText('🎉', hatX, hatY);
@@ -843,9 +990,11 @@ const dino = {
         else if (currentHat === 'cowboy') ctx.fillText('🤠', hatX, hatY);
         else if (currentHat === 'astro') ctx.fillText('🧑‍🚀', hatX, hatY);
         else if (currentHat === 'ninja') ctx.fillText('🥷', hatX, hatY);
+        else if (currentHat === 'fire') ctx.fillText('🔥', hatX, hatY);
+        else if (currentHat === 'cyber') ctx.fillText('🤖', hatX, hatY);
+        else if (currentHat === 'demon') ctx.fillText('😈', hatX, hatY);
 
-        // Pernas
-        ctx.fillStyle = '#4a9d4e';
+        ctx.fillStyle = bodyColor;
         const legOffset = this.jumping ? 0 : Math.floor(this.legFrame) * 4;
         ctx.fillRect(this.x + 14, this.y + 50, 8, 15);
         ctx.fillRect(this.x + 22 + legOffset, this.y + 50, 8, 15);
@@ -858,7 +1007,6 @@ const dino = {
     }
 };
 
-/* ================= PARTÍCULAS ================= */
 let particles = [];
 function createParticles(x, y, color) {
     if (particles.length >= MAX_PARTICLES) return;
@@ -882,7 +1030,6 @@ function drawParticles() {
     });
 }
 
-/* ================= PARALLAX E AMBIENTE ================= */
 let groundY = 0;
 let clouds = [], mountains = [];
 
@@ -958,12 +1105,10 @@ function drawBackground() {
     });
 }
 
-/* ================= OBSTÁCULOS (INIMIGOS) ================= */
 let obstacles = [];
 let obstacleTimer = 0;
 
 function createObstacle() {
-    // Escolhe tipo baseado na fase
     let types = [];
     if(currentPhase === 1) types = [{w:24,h:35,c:'#8b4513',t:'ground'}, {w:30,h:45,c:'#654321',t:'ground'}, {w:30,h:25,c:'#FF0000',t:'bird'}];
     else if(currentPhase === 2) types = [{w:25,h:45,c:'#2e8b57',t:'cactus'}, {w:40,h:25,c:'#8B4513',t:'flying'}];
@@ -973,7 +1118,6 @@ function createObstacle() {
     const type = types[Math.floor(Math.random() * types.length)];
     let obsY = groundY - type.h;
     
-    // Altura especial para voadores
     if (['flying', 'bird', 'ghost', 'ufo'].includes(type.t)) {
         obsY = groundY - 60 - Math.random() * 80;
     }
@@ -998,14 +1142,14 @@ function updateObstacles() {
         if (['flying', 'bird', 'ghost', 'ufo'].includes(o.type)) {
             o.frame += 0.2; o.y += Math.sin(o.frame) * 1.5;
         }
-        if (o.type === 'meteor') o.frame += 0.2; // Rotação
+        if (o.type === 'meteor') o.frame += 0.2;
 
         if (!o.scored && o.x + o.w < dino.x) {
             o.scored = true; score += 10;
+            addCombo();
         }
     });
     
-    // Remove obstáculos mortos ou fora da tela
     obstacles = obstacles.filter(o => o.x + o.w > 0 && !o.dead);
     
     baseGameSpeed = 5 + Math.floor(score / 100) * 0.5;
@@ -1033,12 +1177,11 @@ function drawObstacles() {
             ctx.rotate(o.frame);
             ctx.fillStyle = '#c0392b'; ctx.fillRect(-15,-15,30,30);
             ctx.fillStyle = '#e74c3c'; ctx.fillRect(-10,-10,10,10);
-        } else if (o.type === 'flying') { // Pterodactilo
+        } else if (o.type === 'flying') {
              ctx.fillStyle = '#6d4c41'; ctx.fillRect(-15, -8, 30, 16);
              ctx.beginPath(); ctx.arc(12, 0, 10, 0, Math.PI * 2); ctx.fill();
              ctx.fillStyle = '#ff9800'; ctx.beginPath(); ctx.moveTo(18, -3); ctx.lineTo(25, 0); ctx.lineTo(18, 3); ctx.fill();
         } else {
-            // Troncos, Cactos, Pedras
             if(o.type === 'cactus') {
                  ctx.fillRect(-10, -20, 20, 40); ctx.fillRect(-20, -10, 10, 10); ctx.fillRect(10, -15, 10, 10);
             } else {
@@ -1050,10 +1193,12 @@ function drawObstacles() {
     });
 }
 
-/* ================= SCORE E COLISÃO ================= */
 function drawScore() {
+    const comboColor = combo >= 10 ? '#FF00FF' : combo >= 5 ? '#FFD700' : '#FFF';
+    const comboText = combo > 0 ? ` | <span style="color:${comboColor}">COMBO x${combo} 🔥</span>` : '';
+    
     document.getElementById("scoreText").innerHTML =
-        `Pontos: <strong>${Math.floor(score)}</strong> | 🪙 <strong>${totalCoins}</strong> | Recorde: <strong>${bestScore}</strong>`;
+        `LVL ${playerLevel} | Pontos: <strong>${Math.floor(score)}</strong> | 🪙 <strong>${totalCoins}</strong> | Recorde: <strong>${bestScore}</strong>${comboText}`;
 }
 
 function checkCollision() {
@@ -1066,12 +1211,17 @@ function checkCollision() {
             dino.y + dino.h - 8 > o.y &&
             dino.y + 12 < o.y + o.h
         ) {
-            // CORREÇÃO: Dash destrói obstáculos
             if(activePowerups.dash > 0) {
                 o.dead = true;
                 o.x = -100;
                 createParticles(o.x, o.y, o.color);
                 hitSound();
+                score += 50;
+                addCombo();
+                createFloatingText(o.x, o.y - 30, `+50 KILL! 💀`, "#FF0000");
+                
+                if(!achievements.includes('first_blood')) unlockAchievement('first_blood');
+                
                 return false;
             }
             return true;
@@ -1080,7 +1230,6 @@ function checkCollision() {
     return false;
 }
 
-/* ================= LOOP E ESTADO ================= */
 function endGame() {
     gameOver = true;
     hitSound();
@@ -1097,11 +1246,12 @@ function endGame() {
     document.getElementById("finalScore").innerHTML = 
         `Pontos: <strong>${finalScoreNum}</strong><br>` +
         `Moedas: <strong>🪙 ${totalCoins}</strong><br>` +
-        `Recorde: <strong>${bestScore}</strong>`;
+        `Recorde: <strong>${bestScore}</strong><br>` +
+        `Max Combo: <strong>x${maxCombo} 🔥</strong><br>` +
+        `Level: <strong>${playerLevel}</strong> (${playerXP} XP)`;
     document.getElementById("gameOverScreen").style.display = "flex";
     document.getElementById("pauseBtn").style.display = "none";
-    document.getElementById("shopBtn").style.display = "none";
-}
+    document.getElementById("shopBtn").style.display = "none";}
 
 function loop() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -1123,9 +1273,12 @@ function loop() {
     if (!gameOver && gameStarted) {
         dino.update();
         if (!gamePaused) {
-            updateObstacles(); updateCoins(); updatePowerups();
+            updateObstacles(); updateCoins(); updatePowerups(); updateCombo();
             score += 0.1;
             if (checkCollision()) endGame();
+            
+            if(score >= 1000 && !achievements.includes('survivor')) unlockAchievement('survivor');
+            if(currentPhase >= 4 && !achievements.includes('speed_demon')) unlockAchievement('speed_demon');
         }
     }
 
@@ -1136,7 +1289,6 @@ function loop() {
     requestAnimationFrame(loop);
 }
 
-/* ================= CONTROLES E INPUTS ================= */
 document.addEventListener("keydown", e => { if (e.code === "Space") { e.preventDefault(); dino.jump(); } });
 canvas.addEventListener("click", () => dino.jump());
 canvas.addEventListener("touchstart", (e) => { e.preventDefault(); dino.jump(); });
@@ -1170,12 +1322,10 @@ window.addEventListener("devicemotion", e => {
     lastAcceleration = { x: acc.x, y: acc.y, z: acc.z };
 });
 
-/* ================= UPLOAD FOTO E SAVE ================= */
 const photoPreview = document.getElementById("photoPreview");
 const previewImg = document.getElementById("previewImg");
 const fileInput = document.getElementById("faceUpload");
 
-// Tenta carregar foto do LocalStorage
 const savedFace = localStorage.getItem("dino_custom_face");
 if(savedFace) {
     const img = new Image(); img.onload = () => { faceImage = img; previewImg.src = savedFace; photoPreview.style.display = "flex"; fileInput.style.display = "none"; };
@@ -1189,7 +1339,7 @@ fileInput.addEventListener("change", e => {
     const reader = new FileReader();
     reader.onload = ev => {
         const result = ev.target.result;
-        localStorage.setItem("dino_custom_face", result); // Salva
+        localStorage.setItem("dino_custom_face", result);
         const img = new Image();
         img.onload = () => {
             faceImage = img; previewImg.src = result; photoPreview.style.display = "flex"; fileInput.style.display = "none";
@@ -1205,7 +1355,6 @@ document.getElementById("removePhoto").onclick = () => {
     photoPreview.style.display = "none"; fileInput.style.display = "inline-block"; fileInput.value = "";
 };
 
-/* ================= BOOTSTRAP (CORRIGIDO) ================= */
 document.getElementById("startBtn").onclick = () => {
     document.getElementById("tutorialScreen").style.display = "none";
     gameStarted = true;
@@ -1226,18 +1375,19 @@ document.getElementById("startBtn").onclick = () => {
 
 function resetGame() {
     gameOver = false; 
-    gameStarted = true; // CORREÇÃO: deve ser true
+    gameStarted = true;
     gamePaused = false;
     score = 0; gameSpeed = 5; baseGameSpeed = 5; currentPhase = 1;
     obstacles = []; obstacleTimer = 0; particles = []; coins = []; coinTimer = 0; 
     powerups = []; powerupTimer = 0;
     activePowerups = { shield: 0, magnet: 0, slowmo: 0, dash: 0 }; 
     floatingTexts = [];
+    combo = 0; comboTimer = 0;
     currentTheme = getCurrentTheme(0);
     dino.y = 0; dino.vy = 0; dino.jumping = false; dino.doubleJumped = false; dino.legFrame = 0;
     
     document.getElementById("gameOverScreen").style.display = "none";
-    document.getElementById("tutorialScreen").style.display = "none"; // ADICIONAR
+    document.getElementById("tutorialScreen").style.display = "none";
     document.getElementById("pauseBtn").style.display = "flex";
     document.getElementById("shopBtn").style.display = "flex";
     document.getElementById("soundBtn").style.display = "flex";
@@ -1256,7 +1406,6 @@ pauseBtn.onclick = () => {
     else if(soundEnabled) bgMusic.play().catch(()=>{});
 };
 
-// Inicia o loop imediatamente
 loop();
 </script>
 </body>
