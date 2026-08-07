@@ -1,4 +1,4 @@
-const CACHE_NAME = "dinopepe-v2";
+const CACHE_NAME = "dinopepe-v3";
 const FILES_TO_CACHE = [
   "./",
   "./index.html",
