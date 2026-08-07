@@ -197,6 +197,15 @@ canvas {
     display: flex;
 }
 
+/* a loja precisa ficar ACIMA do Game Over e do tutorial: as três telas
+   dividiam o mesmo z-index, e como #gameOverScreen vem depois no HTML era
+   ela que ganhava — o "Ir para Loja" abria a loja escondida atrás */
+#shopScreen {
+    z-index: 1000;
+    /* quase opaca: aberta por cima do Game Over, o texto de trás vazava */
+    background: rgba(8, 8, 12, 0.985);
+}
+
 #tutorialScreen h2, #shopScreen h2 {
     margin-bottom: 20px;
     font-size: 2rem;
