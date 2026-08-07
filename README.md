@@ -49,12 +49,21 @@ O jogo passou por uma repaginada grande para parecer um mundo de verdade:
 * Moedas com **brilho metálico** e giro em 3D; power-ups com aura e anel pulsante.
 * Todo mundo projeta **sombra no chão**.
 
+**Interface repaginada (versão 13 anos 😎)**
+* Visual escuro com vidro fosco e neon, tipografia do sistema em vez de Courier — cara de jogo, não de tarefa de escola.
+* **HUD compacto:** pontuação grande, chip de combo que pulsa (e muda de cor no x10), moedas, recorde e **barra de XP**.
+* **Tela inicial** com logo em degradê, teclas mostradas como chips e atalho direto pra **Loja** (antes só dava pra entrar depois de começar a partida).
+* **Loja** com abas segmentadas, cards em grade, selo *Equipado*, preço em destaque quando falta moeda, saldo e progresso de level no topo.
+* **Modal e avisos próprios** no lugar do `confirm()`/`alert()` do navegador, que no celular aparecem com o endereço do site e travam o jogo.
+* **Fim de jogo** com pontuação gigante, selo animado de **Novo recorde!** e grade de estatísticas.
+
 **Correções importantes**
 * ⏱️ **Velocidade constante em qualquer tela:** antes o jogo somava movimento por quadro, então em celular de 120Hz ele rodava com o dobro da velocidade. Agora usa passo de tempo fixo.
 * 🔊 **Som que não morre mais:** antes cada efeito criava um `AudioContext` novo; os navegadores limitam a poucos contextos e o áudio parava depois de um tempo de jogo. Agora é um contexto só, compartilhado.
 * 📱 **Tela cheia de verdade:** o jogo ocupa toda a tela do celular, sem faixa vazia embaixo.
 * 🖼️ **Nitidez em telas retina** (renderização com `devicePixelRatio`).
-* 📲 **PWA funcionando:** o `manifest.json` existia, mas ninguém registrava o Service Worker — agora o jogo realmente funciona offline.
+* 📲 **PWA funcionando:** o `manifest.json` existia, mas ninguém registrava o Service Worker — agora o jogo realmente funciona offline, com estratégia *network-first* para o HTML (cache-first prendia o jogador numa versão antiga e nenhum deploy novo chegava).
+* 🛒 **"Ir para Loja" consertado:** a loja dividia o `z-index` com a tela de Game Over e abria escondida atrás dela — o botão parecia morto.
 * 📸 **Foto pelo botão roxo** em vez do campo de arquivo solto na tela; a imagem é reduzida para 128px antes de salvar, ocupando bem menos espaço.
 * ⏸️ **Pausa automática** quando o celular toca ou você troca de app.
 
