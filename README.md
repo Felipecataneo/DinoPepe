@@ -69,6 +69,29 @@ O jogo passou por uma repaginada grande para parecer um mundo de verdade:
 
 ---
 
+## 🚀 Modo Nave
+
+Um segundo modo, separado da corrida clássica, escolhido na tela inicial.
+
+**A decolagem.** O Dino chega correndo até a plataforma, pula pra dentro do foguete,
+a escotilha fecha e vem a contagem **3 · 2 · 1**. Os motores acendem, a fumaça toma
+a base, a tela treme e a nave sobe — o chão despenca, o céu vira preto e as estrelas
+viram riscos de velocidade. Um clarão e o jogo começa. (Dá pra pular tocando na tela;
+no replay entra só a chegada rápida em warp.)
+
+**O voo.** Segure para acelerar pra cima, solte para cair. Nada de pulo: é voo livre.
+* 🪨 **Obstáculos:** asteroides girando, satélites, naves alienígenas, cometas velozes
+  e cinturões de rocha com uma única passagem.
+* 💎 **Prêmios:** moedas em ondas e arcos, estrelas e gemas — que valem bem mais.
+* ⚡ Os power-ups voltam: escudo, ímã, câmera lenta e o **Turbo**, que atravessa asteroide.
+* 🌌 **4 setores** com nebulosas de cores diferentes, do Órbita Baixa ao Núcleo Profundo.
+* 🦖 O Dino aparece na bolha do cockpit — **com a sua foto e o chapéu que estiver usando**.
+
+As moedas são as mesmas da corrida, então dá pra farmar no espaço e gastar na loja.
+O recorde do Modo Nave é guardado separado do recorde da corrida.
+
+---
+
 ## 🎮 Sobre o jogo
 
 O DinoPepe é um "endless runner" moderno e personalizado:
