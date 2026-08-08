@@ -552,8 +552,11 @@ body.cinematic #removePhoto { opacity: 0; pointer-events: none; }
 
 #duckBtn {
     position: fixed;
-    left: 14px; bottom: 20px;
-    width: 62px; height: 62px;
+    /* afasta da faixa do gesto de "home" do iPhone, senão o toque para
+       agachar vira arrastar a barra do sistema */
+    left: 16px;
+    bottom: calc(26px + env(safe-area-inset-bottom, 0px));
+    width: 68px; height: 68px;
     border-radius: 20px;
     border: 1px solid var(--stroke-2);
     background: var(--panel);
@@ -568,7 +571,12 @@ body.cinematic #removePhoto { opacity: 0; pointer-events: none; }
     cursor: pointer;
     touch-action: none;
 }
-#duckBtn:active { transform: scale(.93); border-color: var(--acc); }
+#duckBtn:active { transform: scale(.93); border-color: var(--acc); background: rgba(61,220,132,.22); }
+#duckBtn .dl {
+    position: absolute; bottom: -17px; left: 0; width: 100%;
+    font-size: 9px; font-weight: 800; letter-spacing: 1px;
+    color: var(--dim); text-transform: uppercase;
+}
 body.cinematic #duckBtn { opacity: 0; pointer-events: none; }
 
 .payout {
@@ -643,7 +651,7 @@ body.cinematic #duckBtn { opacity: 0; pointer-events: none; }
 <button id="shopBtn" class="circle-btn">🛒</button>
 <button id="photoBtn" class="circle-btn" title="Seu rosto no Dino"><span>📷</span><img id="previewImg" src="" alt=""></button>
 <button id="removePhoto" title="Remover foto">✕</button>
-<button id="duckBtn" title="Agachar">⬇</button>
+<button id="duckBtn" title="Agachar (segure)">⬇<span class="dl">agachar</span></button>
 
 <!-- ===================== TELA INICIAL ===================== -->
 <div id="tutorialScreen" class="overlay">
