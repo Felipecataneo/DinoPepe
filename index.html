@@ -2689,11 +2689,18 @@ const ship = {
 
 let spaceObs = [], prizes = [], sLayers = [[], [], []], nebulas = [], shooting = [];
 let spaceObsTimer = 0, prizeTimer = 0, spacePowTimer = 0;
-let spaceSector = 1, spaceSpeed = 6;
+let spaceSector = 1, spaceSpeed = 6, spaceScroll = 0;
+let lastZone = 1, obsCount = 0, warnBeep = 0;
+
+// As bordas da tela são barreiras de energia e MATAM.
+// Antes elas só empurravam a nave de volta, então dava para encostar no teto
+// (ou no chão) e atravessar o jogo inteiro sem tocar em nada.
+function hazTop() { return SHIP_TOP; }
+function hazBot() { return VH - 22; }
 let cs = null;                 // estado da cutscene
 
 const SECTORS = {
-    1: { name: 'SETOR 1 · ÓRBITA BAIXA 🌍',        neb: ['#2563eb', '#0ea5e9'], kinds: ['asteroid', 'satellite'] },
+    1: { name: 'SETOR 1 · ÓRBITA BAIXA 🌍',        neb: ['#2563eb', '#0ea5e9'], kinds: ['asteroid', 'satellite', 'belt'] },
     2: { name: 'SETOR 2 · CINTURÃO DE ROCHAS ☄️',  neb: ['#f59e0b', '#ef4444'], kinds: ['asteroid', 'belt', 'comet'] },
     3: { name: 'SETOR 3 · ZONA ALIENÍGENA 👽',      neb: ['#22c55e', '#14b8a6'], kinds: ['alien', 'asteroid', 'belt'] },
     4: { name: 'SETOR 4 · NÚCLEO PROFUNDO 🌌',      neb: ['#a855f7', '#ec4899'], kinds: ['alien', 'comet', 'belt', 'asteroid'] }
@@ -3115,26 +3122,63 @@ function drawWarpIn() {
    ========================================================================= */
 function spaceSectorFor(s) { return s < 600 ? 1 : s < 1600 ? 2 : s < 3200 ? 3 : 4; }
 
+// Sorteia uma faixa (alto / meio / baixo) sem repetir a anterior: o corredor
+// seguro nunca fica no mesmo lugar, então parar num ponto fixo não funciona.
+function pickZone() {
+    // sempre troca de faixa (não dá pra parar num ponto fixo), mas só para uma
+    // faixa VIZINHA: exigir ir do teto ao chão de um obstáculo pro outro é
+    // fisicamente impossível na velocidade alta.
+    const opcoes = lastZone === 1 ? [0, 2] : [1];
+    lastZone = opcoes[Math.floor(Math.random() * opcoes.length)];
+    return lastZone;
+}
+function zoneY(z, margin) {
+    const top = hazTop() + margin, bot = hazBot() - margin;
+    const h = (bot - top) / 3;
+    return rand(top + z * h, top + (z + 1) * h);
+}
+
 function createSpaceObstacle() {
     const kinds = SECTORS[spaceSector].kinds;
+    const top = hazTop(), bot = hazBot();
+    obsCount++;
+
+    // a cada 3 obstáculos entra uma formação que fecha uma faixa inteira,
+    // obrigando o jogador a sair de onde estiver
+    if (obsCount % 4 === 0) {
+        if (Math.random() < 0.45) {
+            const gapH = clamp((bot - top) * 0.30, 120, 190);
+            const gapY = zoneY(pickZone(), gapH / 2 + 10);
+            spaceObs.push({ kind: 'belt', x: VW + 40, w: 40, gapY: gapY, gapH: gapH, seed: Math.random() * 100, dead: false, scored: false });
+        } else {
+            const side = Math.random() < 0.5 ? 1 : -1;   // 1 = cresce do teto
+            const cover = rand(0.48, 0.66) * (bot - top);
+            spaceObs.push({
+                kind: 'wall', side: side, x: VW + 40, w: 42, cover: cover,
+                seed: Math.random() * 100, dead: false, scored: false
+            });
+            lastZone = 1;
+        }
+        return;
+    }
+
     const kind = kinds[Math.floor(Math.random() * kinds.length)];
-    const top = SHIP_TOP, bot = VH - 24;
 
     if (kind === 'belt') {
-        const gapH = clamp((bot - top) * 0.34, 130, 210);
-        const gapY = rand(top + gapH / 2 + 14, bot - gapH / 2 - 14);
+        const gapH = clamp((bot - top) * 0.32, 125, 200);
+        const gapY = zoneY(pickZone(), gapH / 2 + 12);
         spaceObs.push({ kind: 'belt', x: VW + 40, w: 40, gapY: gapY, gapH: gapH, seed: Math.random() * 100, dead: false, scored: false });
         return;
     }
     if (kind === 'comet') {
         spaceObs.push({
-            kind: 'comet', x: VW + 60, y: rand(top, bot), w: 30, h: 18,
+            kind: 'comet', x: VW + 60, y: zoneY(pickZone(), 14), w: 30, h: 18,
             vy: rand(-1.4, 1.4), boost: 6, frame: 0, dead: false, scored: false
         });
         return;
     }
     if (kind === 'alien') {
-        const y = rand(top + 40, bot - 40);
+        const y = zoneY(pickZone(), 24);
         spaceObs.push({
             kind: 'alien', x: VW + 50, y: y, baseY: y, w: 46, h: 24,
             frame: rand(0, 6), amp: rand(26, 62), dead: false, scored: false
@@ -3143,14 +3187,14 @@ function createSpaceObstacle() {
     }
     if (kind === 'satellite') {
         spaceObs.push({
-            kind: 'satellite', x: VW + 50, y: rand(top + 30, bot - 30), w: 54, h: 26,
+            kind: 'satellite', x: VW + 50, y: zoneY(pickZone(), 18), w: 54, h: 26,
             frame: rand(0, 6), spin: rand(-0.012, 0.012), dead: false, scored: false
         });
         return;
     }
     const r = rand(16, 34);
     spaceObs.push({
-        kind: 'asteroid', x: VW + 60, y: rand(top + r, bot - r), w: r * 2, h: r * 2, r: r,
+        kind: 'asteroid', x: VW + 60, y: zoneY(pickZone(), r * 0.55), w: r * 2, h: r * 2, r: r,
         vy: rand(-0.9, 0.9), frame: rand(0, 6), spin: rand(-0.05, 0.05),
         seed: Math.random() * 100, dead: false, scored: false
     });
@@ -3162,7 +3206,10 @@ function shipBox() {
 
 function updateSpaceObstacles() {
     spaceObsTimer += spaceSpeed;
-    const gapPx = Math.max(215, 430 - score * 0.045);
+    // o espaço entre obstáculos nunca pode ser menor do que o necessário para
+    // trocar de faixa a tempo (≈40 quadros, já contando a aceleração da nave)
+    const minGap = spaceSpeed * 40;
+    const gapPx = Math.max(215, minGap, 430 - score * 0.045);
     if (spaceObsTimer > gapPx) { createSpaceObstacle(); spaceObsTimer = 0; }
 
     const b = shipBox();
@@ -3174,7 +3221,7 @@ function updateSpaceObstacles() {
 
         if (o.kind === 'asteroid') {
             o.y += o.vy;
-            if (o.y < top + o.r || o.y > bot - o.r) o.vy *= -1;
+            if (o.y < hazTop() + o.r * 0.6 || o.y > hazBot() - o.r * 0.6) o.vy *= -1;
         } else if (o.kind === 'alien') {
             o.y = o.baseY + Math.sin(o.frame * 0.9) * o.amp;
         } else if (o.kind === 'comet') {
@@ -3192,6 +3239,11 @@ function updateSpaceObstacles() {
         if (o.kind === 'belt') {
             if (b.x < o.x + o.w && b.x + b.w > o.x) {
                 if (b.y < o.gapY - o.gapH / 2 || b.y + b.h > o.gapY + o.gapH / 2) hit = true;
+            }
+        } else if (o.kind === 'wall') {
+            if (b.x < o.x + o.w && b.x + b.w > o.x) {
+                const edge = o.side === 1 ? hazTop() + o.cover : hazBot() - o.cover;
+                if (o.side === 1 ? b.y < edge : b.y + b.h > edge) hit = true;
             }
         } else {
             const ox = o.x - o.w / 2, oy = o.y - o.h / 2;
@@ -3247,12 +3299,40 @@ function drawSpaceObstacles() {
                     ctx.restore();
                 }
             };
-            drawChunk(SHIP_TOP - 30, top);
-            drawChunk(bot, VH + 10);
+            drawChunk(hazTop() - 6, top);
+            drawChunk(bot, hazBot() + 6);
             // luzes marcando a passagem
             ctx.fillStyle = 'rgba(61,220,132,.85)';
             ctx.beginPath(); ctx.arc(o.x + 20, top + 6, 3, 0, Math.PI * 2); ctx.fill();
             ctx.beginPath(); ctx.arc(o.x + 20, bot - 6, 3, 0, Math.PI * 2); ctx.fill();
+            return;
+        }
+
+        if (o.kind === 'wall') {
+            const from = o.side === 1 ? hazTop() : hazBot() - o.cover;
+            const to = o.side === 1 ? hazTop() + o.cover : hazBot();
+            for (let y = from; y < to; y += 25) {
+                const h1 = hash(o.seed + y * 0.29);
+                const r = 12 + h1 * 9;
+                ctx.save();
+                ctx.translate(o.x + 21 + (h1 - 0.5) * 14, y + 12);
+                ctx.rotate(o.frame * 0.16 + h1 * 6);
+                const g = ctx.createRadialGradient(-r * 0.3, -r * 0.3, 1, 0, 0, r);
+                g.addColorStop(0, '#8a7565'); g.addColorStop(1, '#392d22');
+                ctx.fillStyle = g;
+                ctx.beginPath();
+                for (let k = 0; k < 7; k++) {
+                    const a = (k / 7) * Math.PI * 2;
+                    const rr = r * (0.75 + hash(o.seed + k + y) * 0.4);
+                    ctx[k ? 'lineTo' : 'moveTo'](Math.cos(a) * rr, Math.sin(a) * rr);
+                }
+                ctx.closePath(); ctx.fill();
+                ctx.restore();
+            }
+            // luz marcando a beirada segura
+            const edge = o.side === 1 ? hazTop() + o.cover : hazBot() - o.cover;
+            ctx.fillStyle = 'rgba(61,220,132,.9)';
+            ctx.beginPath(); ctx.arc(o.x + 21, edge + (o.side === 1 ? -5 : 5), 3.5, 0, Math.PI * 2); ctx.fill();
             return;
         }
 
@@ -3333,7 +3413,7 @@ function drawSpaceObstacles() {
    PRÊMIOS
    ========================================================================= */
 function createPrize() {
-    const top = SHIP_TOP + 26, bot = VH - 50;
+    const top = hazTop() + 34, bot = hazBot() - 34;
     const roll = Math.random();
 
     if (roll < 0.18) {
@@ -3447,7 +3527,7 @@ function updateSpacePowerups() {
     if (spacePowTimer > 2600 && Math.random() < 0.02) {
         const types = ['shield', 'magnet', 'slowmo', 'dash'];
         powerups.push({
-            x: VW + 30, y: rand(SHIP_TOP + 40, VH - 60), w: 30, h: 30,
+            x: VW + 30, y: rand(hazTop() + 46, hazBot() - 46), w: 30, h: 30,
             type: types[Math.floor(Math.random() * types.length)], float: 0
         });
         spacePowTimer = 0;
@@ -3496,9 +3576,31 @@ function updateShip() {
     ship.vy = clamp(ship.vy, -SHIP_MAX_VY, SHIP_MAX_VY);
     ship.y += ship.vy;
 
-    const top = SHIP_TOP + 10, bot = VH - 30;
-    if (ship.y < top) { ship.y = top; ship.vy = Math.max(0, ship.vy) + 0.6; }
-    if (ship.y > bot) { ship.y = bot; ship.vy = Math.min(0, ship.vy) - 0.6; }
+    // encostar na barreira é fatal (o escudo aguenta uma, como nos obstáculos)
+    const half = 9;
+    if (ship.y - half <= hazTop() || ship.y + half >= hazBot()) {
+        if (activePowerups.shield > 0) {
+            activePowerups.shield = 0;
+            ship.y = clamp(ship.y, hazTop() + half + 14, hazBot() - half - 14);
+            ship.vy = ship.y < VH / 2 ? 2.5 : -2.5;
+            combo = 0;
+            createParticles(ship.x, ship.y, '#7fd8ff', { count: 20, speed: 5, life: 30 });
+            createFloatingText(ship.x - 40, ship.y - 32, 'ESCUDO QUEBROU!', '#7fd8ff');
+            hitSound(); shakeMag = Math.max(shakeMag, 8); hitStop = 6;
+        } else {
+            flash = 0.7;
+            endGame();
+            return;
+        }
+    }
+
+    // aviso sonoro discreto ao chegar perto da barreira
+    const dNear = Math.min(ship.y - half - hazTop(), hazBot() - half - ship.y);
+    if (dNear < 34 && warnBeep <= 0) {
+        tone({ freq: 620, dur: 0.06, type: 'square', vol: 0.07 });
+        warnBeep = 14;
+    }
+    if (warnBeep > 0) warnBeep--;
 
     // chama acompanha a aceleração
     const target = ship.thrust ? 1 : 0.32;
@@ -3508,6 +3610,41 @@ function updateShip() {
         createParticles(ship.x - 26, ship.y + 4, Math.random() < 0.5 ? '#ffb74d' : '#fff3c4',
             { count: 1, speed: 1.4, life: 16, size: rand(2, 4), grav: 0, round: true, lift: 0, angle: Math.PI });
     }
+}
+
+function drawHazards() {
+    const half = 9;
+    [[hazTop(), 1], [hazBot(), -1]].forEach(([y, dir]) => {
+        const dist = Math.abs(ship.y + (-dir) * half - y);
+        const warn = clamp(1 - dist / 110, 0, 1);
+
+        const g = ctx.createLinearGradient(0, y, 0, y + dir * 52);
+        g.addColorStop(0, `rgba(255,60,100,${0.42 + warn * 0.4})`);
+        g.addColorStop(1, 'rgba(255,60,100,0)');
+        ctx.fillStyle = g;
+        ctx.fillRect(-10, dir > 0 ? y : y - 52, VW + 20, 52);
+
+        ctx.save();
+        ctx.shadowBlur = 12 + warn * 16;
+        ctx.shadowColor = '#ff3b6b';
+        ctx.fillStyle = `rgba(255,${90 + warn * 60},${140},${0.9})`;
+        ctx.fillRect(-10, y - 1.5, VW + 20, 3);
+        ctx.restore();
+
+        // hachuras correndo, para ler que a barreira é "viva"
+        ctx.save();
+        ctx.globalAlpha = 0.30 + warn * 0.45;
+        ctx.strokeStyle = '#ff5c8a';
+        ctx.lineWidth = 2;
+        const sp = 26, off = spaceScroll % sp;
+        for (let x = -sp; x < VW + sp; x += sp) {
+            ctx.beginPath();
+            ctx.moveTo(x - off, y);
+            ctx.lineTo(x - off + 11, y + dir * 11);
+            ctx.stroke();
+        }
+        ctx.restore();
+    });
 }
 
 function drawShip() {
@@ -3539,7 +3676,8 @@ function drawShip() {
 function resetSpace() {
     spaceObs = []; prizes = []; powerups = [];
     spaceObsTimer = 0; prizeTimer = 0; spacePowTimer = 0;
-    spaceSector = 1; spaceSpeed = 6;
+    spaceSector = 1; spaceSpeed = 6; spaceScroll = 0;
+    lastZone = 1; obsCount = 0; warnBeep = 0;
     activePowerups = { shield: 0, magnet: 0, slowmo: 0, dash: 0 };
     particles = []; floatingTexts = [];
     combo = 0; comboTimer = 0;
@@ -3549,6 +3687,7 @@ function resetSpace() {
     ship.y = VH * 0.5;
     ship.vy = 0; ship.thrust = false; ship.dying = false; ship.rot = 0; ship.flame = 0.35;
     initSpaceBackground();
+    createFloatingText(ship.x - 30, VH * 0.5 - 70, '⚠️ NÃO ENCOSTE NAS BARREIRAS', '#ff5c8a');
 }
 
 function spaceTick() {
@@ -3564,6 +3703,7 @@ function spaceTick() {
     else if (activePowerups.slowmo > 0) spaceSpeed = base * 0.55;
     else spaceSpeed = base;
 
+    spaceScroll += spaceSpeed;
     updateSpaceBackground();
     updateShip();
 
@@ -3583,6 +3723,7 @@ function spaceRender() {
     drawPrizes();
     drawPowerups();
     drawSpaceObstacles();
+    drawHazards();
     drawParticles();
     drawShip();
     drawFloatingTexts();

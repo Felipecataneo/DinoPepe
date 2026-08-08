@@ -80,12 +80,16 @@ viram riscos de velocidade. Um clarão e o jogo começa. (Dá pra pular tocando 
 no replay entra só a chegada rápida em warp.)
 
 **O voo.** Segure para acelerar pra cima, solte para cair. Nada de pulo: é voo livre.
+* ⚡ **O teto e o piso são barreiras de energia e matam.** Nada de encostar na borda
+  e atravessar o jogo parado — o escudo aguenta uma raspada, depois acabou.
 * 🪨 **Obstáculos:** asteroides girando, satélites, naves alienígenas, cometas velozes
   e cinturões de rocha com uma única passagem.
 * 💎 **Prêmios:** moedas em ondas e arcos, estrelas e gemas — que valem bem mais.
 * ⚡ Os power-ups voltam: escudo, ímã, câmera lenta e o **Turbo**, que atravessa asteroide.
 * 🌌 **4 setores** com nebulosas de cores diferentes, do Órbita Baixa ao Núcleo Profundo.
 * 🦖 O Dino aparece na bolha do cockpit — **com a sua foto e o chapéu que estiver usando**.
+* 🎯 O corredor seguro muda de altura a cada obstáculo (mas sempre para uma faixa
+  vizinha, nunca de um extremo ao outro), então não existe lugar bom pra ficar parado.
 
 As moedas são as mesmas da corrida, então dá pra farmar no espaço e gastar na loja.
 O recorde do Modo Nave é guardado separado do recorde da corrida.
