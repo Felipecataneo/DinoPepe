@@ -80,15 +80,41 @@ viram riscos de velocidade. Um clarão e o jogo começa. (Dá pra pular tocando 
 no replay entra só a chegada rápida em warp.)
 
 **O voo.** Segure para acelerar pra cima, solte para cair. Nada de pulo: é voo livre.
+* ⚡ **O teto e o piso são barreiras de energia e matam.** Nada de encostar na borda
+  e atravessar o jogo parado — o escudo aguenta uma raspada, depois acabou.
 * 🪨 **Obstáculos:** asteroides girando, satélites, naves alienígenas, cometas velozes
   e cinturões de rocha com uma única passagem.
 * 💎 **Prêmios:** moedas em ondas e arcos, estrelas e gemas — que valem bem mais.
 * ⚡ Os power-ups voltam: escudo, ímã, câmera lenta e o **Turbo**, que atravessa asteroide.
 * 🌌 **4 setores** com nebulosas de cores diferentes, do Órbita Baixa ao Núcleo Profundo.
 * 🦖 O Dino aparece na bolha do cockpit — **com a sua foto e o chapéu que estiver usando**.
+* 🎯 O corredor seguro muda de altura a cada obstáculo (mas sempre para uma faixa
+  vizinha, nunca de um extremo ao outro), então não existe lugar bom pra ficar parado.
 
 As moedas são as mesmas da corrida, então dá pra farmar no espaço e gastar na loja.
 O recorde do Modo Nave é guardado separado do recorde da corrida.
+
+---
+
+## 🆕 Progressão e rejogo
+
+* 👥 **Três perfis** (Pepe, tio, quem quiser): moedas, recorde, skins e foto separados.
+  A tela inicial vira um pódio com o recorde de cada um. O progresso antigo migra
+  sozinho para o perfil 1.
+* 🎯 **Desafio do dia:** sorteado pela data (o mesmo o dia inteiro), paga ~250 moedas
+  e 150 XP. Muda todo dia, dá motivo pra voltar.
+* ⭐ **O level agora faz alguma coisa:** cada nível aumenta a duração dos power-ups
+  e, do 3 em diante, a partida começa com escudo. O XP vem de jogar, não só de troféus
+  — antes o teto era 1.300 XP e ninguém passava do level 2.
+* 💰 **Economia refeita:** com os valores antigos eram ~1.000 partidas para comprar a
+  loja inteira (medido com bots). Agora cada partida paga um bônus por pontos e combo,
+  e o acervo completo sai em ~25-45 partidas.
+* ⬇️ **Agachar:** seta ↓ / botão na tela. Um terço dos voadores agora vem rasante e
+  **só passa agachando** — antes eles voavam alto e eram inofensivos pra quem ficava no chão.
+* 🚀 **A corrida agora decola:** aos 3.000 pontos o Dino não entra numa "fase espaço",
+  ele corre até o foguete e a partida vira Modo Nave, levando os pontos junto.
+* 🎵 **A trilha muda de ambiente** por fase (aberta na fazenda, abafada na floresta,
+  fina e mais grave no espaço), filtrando o mesmo arquivo em vez de baixar outros.
 
 ---
 
