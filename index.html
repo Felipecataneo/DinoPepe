@@ -671,14 +671,15 @@ body.cinematic #duckBtn { opacity: 0; pointer-events: none; }
         </div>
         <div class="hint">
             Toque rápido = pulo curto · <b>segure para pular mais alto</b><br>
-            No ar, toque de novo para o <b>pulo duplo</b>
+            No ar, toque de novo para o <b>pulo duplo</b><br>
+            <b>Arraste para baixo</b> (ou botão ⬇) para agachar
         </div>
 
         <div class="facts">
             <div class="fact"><span>⚡</span><span>O <b>Dash</b> atravessa e destrói os inimigos</span></div>
             <div class="fact"><span>🔥</span><span>Encadeie <b>combos</b> para multiplicar os pontos</span></div>
             <div class="fact"><span>🌎</span><span>4 mundos: fazenda, deserto, floresta e <b>espaço</b></span></div>
-            <div class="fact"><span>⬇️</span><span><b>Agache</b> (seta ↓ ou botão) para passar por baixo dos rasantes</span></div>
+            <div class="fact"><span>⬇️</span><span><b>Agache</b> para passar por baixo dos rasantes: arraste o dedo para baixo, use o botão ⬇ ou a seta ↓</span></div>
             <div class="fact"><span>📷</span><span>Coloque <b>seu rosto</b> no Dino pelo botão da câmera</span></div>
         </div>
 
@@ -4334,9 +4335,54 @@ const duckBtn = document.getElementById('duckBtn');
     duckBtn.addEventListener(ev, () => setDuck(false)));
 canvas.addEventListener("mousedown", pressJump);
 window.addEventListener("mouseup", releaseJump);
-canvas.addEventListener("touchstart", e => { e.preventDefault(); pressJump(); }, { passive: false });
-window.addEventListener("touchend", releaseJump);
-window.addEventListener("touchcancel", releaseJump);
+/* Toque na tela: tocar pula na hora (sem atraso), e arrastar o dedo para
+   baixo agacha. Como o toque já disparou o pulo, o arrasto precisa cancelá-lo
+   — mas só numa janela curta, quando o Dino mal saiu do chão, senão a volta
+   ao chão fica visível. O botão ⬇ continua valendo para quem preferir. */
+const SWIPE_DIST = 34;      // px para baixo
+const SWIPE_MS = 260;       // janela para o arrasto contar
+let swipeY = 0, swipeT = 0, swipeAtivo = false, swipeDucked = false;
+
+canvas.addEventListener("touchstart", e => {
+    e.preventDefault();
+    const t = e.changedTouches[0];
+    swipeY = t.clientY;
+    swipeT = Date.now();
+    swipeAtivo = true;
+    swipeDucked = false;
+    pressJump();
+}, { passive: false });
+
+canvas.addEventListener("touchmove", e => {
+    if (!swipeAtivo || swipeDucked || gameMode !== 'run') return;
+    const t = e.changedTouches[0];
+    if (t.clientY - swipeY < SWIPE_DIST) return;
+    if (Date.now() - swipeT > SWIPE_MS) { swipeAtivo = false; return; }
+    e.preventDefault();
+    swipeDucked = true;
+    cancelarPuloParaAgachar();
+    setDuck(true);
+}, { passive: false });
+
+function soltarToque() {
+    releaseJump();
+    if (swipeDucked) setDuck(false);
+    swipeAtivo = false;
+    swipeDucked = false;
+}
+window.addEventListener("touchend", soltarToque);
+window.addEventListener("touchcancel", soltarToque);
+
+// desfaz um pulo que acabou de começar, para o arrasto virar agachada
+function cancelarPuloParaAgachar() {
+    if (gameMode !== 'run') return;
+    if (dino.jumping && dino.vy < 0) {
+        dino.vy = 2;                 // já começa a descer
+        dino.doubleJumped = true;    // e não emenda pulo duplo
+    }
+    jumpBuffer = 0;
+    jumpHeld = false;
+}
 
 /* --- pulo por movimento do celular --- */
 let lastOrientation = { beta: 0, gamma: 0 };
