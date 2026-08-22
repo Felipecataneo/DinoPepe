@@ -13,7 +13,7 @@
  *     segundo plano — são grandes e raramente mudam.
  */
 
-const VERSION = "v4";
+const VERSION = "v5";
 const HTML_CACHE = `dinopepe-html-${VERSION}`;
 const ASSET_CACHE = `dinopepe-assets-${VERSION}`;
 
