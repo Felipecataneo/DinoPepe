@@ -689,7 +689,6 @@ body.cinematic #duckBtn { opacity: 0; pointer-events: none; }
         </div>
         <div class="btn-row" style="margin-top:10px">
             <button class="btn ghost sm" id="openShopFromStart">🛒 Loja</button>
-            <button class="btn ghost sm" id="testPhase5Btn" title="Pula direto para o Ciberespaço. Não conta moedas, XP nem recorde.">🛰️ Fase 5 (teste)</button>
         </div>
     </div>
 </div>
@@ -830,9 +829,6 @@ let score = 0;
 let animFrame = 0;
 
 let worldX = 0;          // distância percorrida (para texturas paralaxe)
-// partida aberta pelo botão de teste da tela inicial: roda igual, mas não
-// grava nada (moedas, XP, conquistas, desafio do dia e recorde ficam intactos)
-let debugRun = false;
 let hitStop = 0;         // congela o mundo alguns frames no impacto
 let shakeMag = 0;        // tremida de câmera
 let flash = 0;           // clarão branco/vermelho
@@ -1107,7 +1103,6 @@ const achievementsList = [
 ];
 
 function unlockAchievement(id) {
-    if (debugRun) return;
     if (achievements.includes(id)) return;
     const ach = achievementsList.find(a => a.id === id);
     if (!ach) return;
@@ -3065,13 +3060,13 @@ function finishScoreboard() {
     // (fileiras de moedas renovam o timer) e sozinho pagava a loja inteira
     // no espaço a pontuação sobe bem mais rápido, então o divisor é maior
     const divisor = (sessionMode === 'ship' || gameMode === 'ship') ? 6 : 3;
-    const bonus = debugRun ? 0 : Math.floor(finalScoreNum / divisor) + Math.min(runMaxCombo, 25) * 6;
-    const xpGain = debugRun ? 0 : Math.floor(finalScoreNum / 10);
+    const bonus = Math.floor(finalScoreNum / divisor) + Math.min(runMaxCombo, 25) * 6;
+    const xpGain = Math.floor(finalScoreNum / 10);
     totalCoins += bonus;
     playerXP += xpGain;
     const antesLevel = playerLevel;
     playerLevel = Math.floor(playerXP / 1000) + 1;
-    if (!debugRun) localStorage.setItem(K("xp"), playerXP);
+    localStorage.setItem(K("xp"), playerXP);
 
     document.getElementById("goPayCoins").textContent = '+' + bonus.toLocaleString('pt-BR');
     document.getElementById("goPayXp").textContent = '+' + xpGain + ' XP';
@@ -3081,7 +3076,7 @@ function finishScoreboard() {
 
     const ship_ = sessionMode === 'ship';
     const prev = ship_ ? bestShip : bestScore;
-    const isRecord = !debugRun && finalScoreNum > prev;
+    const isRecord = finalScoreNum > prev;
     if (isRecord) {
         if (ship_) {
             bestShip = finalScoreNum;
@@ -3093,8 +3088,7 @@ function finishScoreboard() {
     }
 
     document.getElementById("goModeTag").textContent =
-        debugRun ? '🛰️ Teste — nada foi salvo'
-        : sessionMode === 'ship' ? '🚀 Modo Nave'
+        sessionMode === 'ship' ? '🚀 Modo Nave'
         : gameMode === 'ship' ? '🦖 Corrida → 🚀 Espaço'
         : '🦖 Corrida';
     document.getElementById("finalScoreBig").textContent = finalScoreNum.toLocaleString('pt-BR');
@@ -3145,7 +3139,6 @@ function desafioFeito(d) {
 let desafioAtual = desafioDeHoje();
 
 function checarDesafio() {
-    if (debugRun) return;
     if (!gameStarted || gameOver || desafioFeito(desafioAtual)) return;
     if (desafioAtual.ler() >= desafioAtual.n) {
         localStorage.setItem(K('desafio_' + desafioAtual.chave), '1');
@@ -4257,7 +4250,6 @@ function launchToSpace() {
 }
 
 function startShipMode() {
-    debugRun = false;
     sessionMode = 'ship';
     gameMode = 'ship';
     document.getElementById('duckBtn').style.display = 'none';
@@ -4672,46 +4664,18 @@ document.getElementById("startShipBtn").onclick = startShipMode;
 /* Entrada única do modo corrida. Passa por resetGame() porque "Voltar ao
    menu" não zerava a partida: quem morria, voltava ao menu e clicava em
    Correr recomeçava com a pontuação e os obstáculos da partida anterior. */
-function beginRun(pontoDePartida, teste) {
+function beginRun() {
     unlockAudio();
     gameMode = 'run';
     sessionMode = 'run';
     resetGame();
-    debugRun = !!teste;          // depois do reset, que limpa a marca
-    if (pontoDePartida > 0) pularParaPontos(pontoDePartida);
 
     if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
         DeviceOrientationEvent.requestPermission().catch(console.error);
     }
 }
 
-document.getElementById("startBtn").onclick = () => beginRun(0, false);
-
-/* Atalho de teste: cai direto no trecho em que a fase começa, sem ter que
-   jogar tudo até lá. Marca a partida como debugRun, então nada do que
-   acontecer nela mexe em moedas, XP, conquistas, desafio ou recorde. */
-const PHASE5_SCORE = 2600;
-document.getElementById("testPhase5Btn").onclick = () => beginRun(PHASE5_SCORE, true);
-
-function pularParaPontos(pontos) {
-    score = pontos;
-    baseGameSpeed = 5 + Math.floor(score / 100) * 0.45;
-    gameSpeed = baseGameSpeed;
-    currentPhase = phaseForScore(score);
-    const t = THEMES[currentPhase];
-    // sem transição: o tema já entra pronto, senão a fase levaria alguns
-    // segundos derretendo do verde da fazenda para o azul do ciberespaço
-    ['skyTop', 'skyBottom', 'horizon', 'ground', 'soil', 'far', 'mid', 'near', 'sunColor',
-     'fog', 'sunX', 'sunY', 'sunR', 'clouds', 'stars'].forEach(k => { currentTheme[k] = t[k]; });
-    currentTheme.moon = t.moon;
-    currentTheme.light = t.light;
-    currentTheme.netAlpha = t.net ? 1 : 0;
-    buildScenery();
-    showPhaseText(t.label);
-    // fôlego para olhar o cenário: nessa altura da corrida a velocidade já
-    // está em ~16, e sem escudo a partida de teste acaba antes de dar para ver
-    activePowerups.shield = Math.max(activePowerups.shield, 600);
-}
+document.getElementById("startBtn").onclick = beginRun;
 
 function resetGame() {
     if (sessionMode === 'run' && gameMode === 'ship') { gameMode = 'run'; endCutscene(); }
@@ -4730,7 +4694,6 @@ function resetGame() {
     gameOver = false;
     gameStarted = true;
     gamePaused = false;
-    debugRun = false;        // reiniciar depois de um teste vale como partida normal
     score = 0;
     gameSpeed = 5; baseGameSpeed = 5;
     currentPhase = 1;

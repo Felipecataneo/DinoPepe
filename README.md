@@ -202,11 +202,6 @@ para virar cenário de jogo: os nós andam com a paralaxe e a rede entorta por
 onde o Dino passa. Detalhes e o aviso de licença em
 [THIRD-PARTY-LICENSES.md](./THIRD-PARTY-LICENSES.md).
 
-Para ver a fase sem jogar tudo até lá, a tela inicial tem o botão
-**🛰️ Fase 5 (teste)**. Ele começa a partida já no ciberespaço, com 10 segundos
-de escudo — e **não grava nada**: moedas, XP, conquistas, desafio do dia e
-recorde ficam exatamente como estavam.
-
 ---
 
 ## 📄 Licença
