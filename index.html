@@ -678,7 +678,7 @@ body.cinematic #duckBtn { opacity: 0; pointer-events: none; }
         <div class="facts">
             <div class="fact"><span>⚡</span><span>O <b>Dash</b> atravessa e destrói os inimigos</span></div>
             <div class="fact"><span>🔥</span><span>Encadeie <b>combos</b> para multiplicar os pontos</span></div>
-            <div class="fact"><span>🌎</span><span>4 mundos: fazenda, deserto, floresta e <b>espaço</b></span></div>
+            <div class="fact"><span>🌎</span><span>5 mundos: fazenda, deserto, floresta, espaço e <b>ciberespaço</b></span></div>
             <div class="fact"><span>⬇️</span><span><b>Agache</b> para passar por baixo dos rasantes: arraste o dedo para baixo, use o botão ⬇ ou a seta ↓</span></div>
             <div class="fact"><span>📷</span><span>Coloque <b>seu rosto</b> no Dino pelo botão da câmera</span></div>
         </div>
@@ -927,7 +927,8 @@ const MOODS = {
     fazenda: { lp: 18000, hp: 20,  rate: 1.00 },
     deserto: { lp: 7000,  hp: 60,  rate: 0.98 },
     floresta:{ lp: 2600,  hp: 40,  rate: 0.94 },
-    espaco:  { lp: 4200,  hp: 320, rate: 0.90 }
+    espaco:  { lp: 4200,  hp: 320, rate: 0.90 },
+    cyber:   { lp: 3200,  hp: 240, rate: 0.92 }
 };
 
 function routeMusic() {
@@ -1427,6 +1428,16 @@ const THEMES = {
         fog: 0.35, sunColor: '#dfe8ff', sunX: 0.82, sunY: 0.2, sunR: 32,
         light: 'rgba(90,120,255,0.14)', stars: 1, clouds: 0, moon: true,
         props: ['crystal', 'moonrock', 'flag'], ambient: 'space'
+    },
+    5: {
+        label: "FASE 5: CIBERESPAÇO 🛰️",
+        skyTop: '#04081c', skyBottom: '#0a1738', horizon: '#123a63',
+        ground: '#0f1c36', soil: '#080f22',
+        far: '#14284e', mid: '#1a3a68', near: '#26558f',
+        fog: 0.42, sunColor: '#7ef0ff', sunX: 0.5, sunY: 0.15, sunR: 22,
+        light: 'rgba(60,200,255,0.16)', stars: 0.55, clouds: 0, moon: false,
+        props: ['antenna', 'server', 'datapylon'], ambient: 'data',
+        net: true       // liga o campo de constelação no fundo (ver drawNet)
     }
 };
 
@@ -1439,7 +1450,8 @@ const currentTheme = {
     far: THEMES[1].far, mid: THEMES[1].mid, near: THEMES[1].near,
     fog: THEMES[1].fog, sunColor: THEMES[1].sunColor,
     sunX: THEMES[1].sunX, sunY: THEMES[1].sunY, sunR: THEMES[1].sunR,
-    stars: 0, clouds: THEMES[1].clouds, moon: false, light: THEMES[1].light
+    stars: 0, clouds: THEMES[1].clouds, moon: false, light: THEMES[1].light,
+    netAlpha: 0
 };
 
 function showPhaseText(text) {
@@ -1453,7 +1465,9 @@ function showPhaseText(text) {
 function phaseForScore(s) {
     if (s < 500) return 1;
     if (s < 1500) return 2;
-    return 3;   // aos 3000 a corrida vira Modo Nave, não existe fase 4 aqui
+    if (s < 2200) return 3;
+    if (s < 2600) return 4;
+    return 5;   // aos 3000 a corrida vira Modo Nave
 }
 
 function updateTheme() {
@@ -1463,7 +1477,8 @@ function updateTheme() {
         showPhaseText(THEMES[p].label);
         refreshScenery();
     }
-    setMusicMood(currentPhase === 1 ? 'fazenda' : currentPhase === 2 ? 'deserto' : 'floresta');
+    setMusicMood(currentPhase === 1 ? 'fazenda' : currentPhase === 2 ? 'deserto'
+               : currentPhase === 3 ? 'floresta' : currentPhase === 4 ? 'espaco' : 'cyber');
     const t = THEMES[currentPhase];
     const k = 0.02;
     ['skyTop', 'skyBottom', 'horizon', 'ground', 'soil', 'far', 'mid', 'near', 'sunColor'].forEach(key => {
@@ -1474,6 +1489,8 @@ function updateTheme() {
     });
     currentTheme.moon = t.moon;
     currentTheme.light = t.light;
+    // a rede da fase 5 entra e sai no mesmo ritmo do resto do tema
+    currentTheme.netAlpha += ((t.net ? 1 : 0) - currentTheme.netAlpha) * k;
     document.body.style.background = currentTheme.skyTop;
 }
 
@@ -1522,6 +1539,7 @@ function buildScenery() {
     for (let i = 0; i < nStars; i++) {
         stars.push({ x: rand(0, span), y: rand(0, groundY * 0.92), r: rand(0.5, 1.6), tw: rand(0, Math.PI * 2), sp: rand(0.02, 0.06) });
     }
+    buildNet();
 }
 
 function farH() { return clamp(groundY * rand(0.14, 0.30), 70, 260); }
@@ -1572,6 +1590,108 @@ function updateScenery() {
         s.x -= sp * 0.03;
         if (s.x < -5) s.x = VW + rand(0, 60);
     });
+}
+
+/* =========================================================================
+   CAMPO DE CONSTELAÇÃO — o fundo da FASE 5 (CIBERESPAÇO)
+
+   Portado do componente ConstellationField do ThreeUI
+   (https://github.com/MengTo/threeui — MIT, Copyright (c) 2026 Meng To),
+   arquivo src/shaders/neuform-isolated/sources/constellation-field.html.
+   O aviso de licença completo está em THIRD-PARTY-LICENSES.md.
+
+   O original é fundo de site: nós à deriva que se ligam quando ficam perto
+   e reagem ao mouse. O que mudou para virar fase de jogo:
+     - os nós andam com a paralaxe (gameSpeed) e dão a volta na tela, em vez
+       de só quicar nas bordas;
+     - vivem apenas acima do chão, atrás das montanhas;
+     - a gravidade do ponteiro virou gravidade do Dino: a rede entorta por
+       onde ele passa;
+     - distância ao quadrado no lugar de Math.hypot e menos nós no celular,
+       porque o laço de ligações é O(n²) e roda junto com o resto do jogo.
+   ========================================================================= */
+let netNodes = [];
+const NET_LINK = 150;                       // raio de ligação, em px
+const NET_LINK_SQ = NET_LINK * NET_LINK;
+
+function netNodeCount() {
+    // o laço de ligações cresce ao quadrado: no celular vale menos nó
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return 16;
+    return VW < 768 ? 26 : 46;
+}
+
+function netTop()    { return 8; }
+function netBottom() { return Math.max(60, groundY * 0.92); }
+
+function buildNet() {
+    netNodes = [];
+    const n = netNodeCount(), top = netTop(), bottom = netBottom();
+    for (let i = 0; i < n; i++) {
+        netNodes.push({
+            x: rand(-40, VW + 40),
+            y: rand(top, bottom),
+            vx: rand(-0.3, 0.3),
+            vy: rand(-0.3, 0.3),
+            r: rand(1.8, 4.2),
+            seed: rand(0, Math.PI * 2)
+        });
+    }
+}
+
+function updateNet() {
+    if (currentTheme.netAlpha < 0.01) return;   // fora da fase 5 não custa nada
+    const top = netTop(), bottom = netBottom();
+    const dx = dino.x + dino.w / 2, dy = dino.y + dino.h / 2;
+    netNodes.forEach(nd => {
+        // paralaxe: mais devagar que as montanhas, é o fundo de tudo
+        nd.x += nd.vx - gameSpeed * 0.08;
+        nd.y += nd.vy;
+        if (nd.y < top || nd.y > bottom) nd.vy *= -1;
+        nd.y = clamp(nd.y, top, bottom);
+        if (nd.x < -60) { nd.x = VW + rand(20, 90); nd.y = rand(top, bottom); }
+        // atração pelo Dino (era o mouse no original)
+        const ax = nd.x - dx, ay = nd.y - dy;
+        if (ax * ax + ay * ay < 220 * 220) {
+            nd.x -= ax * 0.004;
+            nd.y -= ay * 0.004;
+        }
+        nd.seed += 0.02;
+    });
+}
+
+function drawNet() {
+    const a = currentTheme.netAlpha;
+    if (a < 0.01) return;
+    const cor = '#7ef0ff';
+    ctx.save();
+    // ligações primeiro, para os nós ficarem nítidos por cima
+    ctx.strokeStyle = cor;
+    ctx.lineWidth = 1;
+    for (let i = 0; i < netNodes.length; i++) {
+        const A = netNodes[i];
+        for (let j = i + 1; j < netNodes.length; j++) {
+            const B = netNodes[j];
+            const ddx = A.x - B.x, ddy = A.y - B.y;
+            const d2 = ddx * ddx + ddy * ddy;
+            if (d2 >= NET_LINK_SQ) continue;
+            const d = Math.sqrt(d2);
+            ctx.globalAlpha = (0.10 + (1 - d / NET_LINK) * 0.34) * a;
+            ctx.beginPath();
+            ctx.moveTo(A.x, A.y);
+            ctx.lineTo(B.x, B.y);
+            ctx.stroke();
+        }
+    }
+    // núcleo + halo: é o halo que faz o nó "acender" em tela retina
+    ctx.fillStyle = cor;
+    netNodes.forEach(nd => {
+        const pulso = 0.78 + Math.sin(nd.seed) * 0.22;
+        ctx.globalAlpha = pulso * 0.16 * a;
+        ctx.beginPath(); ctx.arc(nd.x, nd.y, nd.r * 2.4, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = pulso * 0.75 * a;
+        ctx.beginPath(); ctx.arc(nd.x, nd.y, nd.r, 0, Math.PI * 2); ctx.fill();
+    });
+    ctx.restore();
 }
 
 /* ---- desenho do céu, sol/lua e nuvens ---- */
@@ -1761,6 +1881,39 @@ function drawProp(p) {
     } else if (p.kind === 'flag') {
         ctx.fillStyle = '#cccccc'; ctx.fillRect(-1, -30, 2, 30);
         ctx.fillStyle = '#3498db'; ctx.fillRect(1, -30, 16, 10);
+    } else if (p.kind === 'antenna') {
+        ctx.strokeStyle = dark; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(-9, 0); ctx.lineTo(0, -34); ctx.lineTo(9, 0);
+        ctx.moveTo(-5, -16); ctx.lineTo(5, -16);
+        ctx.moveTo(-2.5, -25); ctx.lineTo(2.5, -25);
+        ctx.stroke();
+        // luz de topo piscando, como torre de verdade
+        const pisca = 0.3 + 0.7 * Math.abs(Math.sin(worldX * 0.012 + p.seed));
+        ctx.fillStyle = rgba('#ff4d6d', pisca);
+        ctx.beginPath(); ctx.arc(0, -36, 2.6, 0, Math.PI * 2); ctx.fill();
+    } else if (p.kind === 'server') {
+        ctx.fillStyle = shadeColor(dark, -14);
+        ctx.fillRect(-11, -30, 22, 30);
+        ctx.fillStyle = shadeColor(dark, 16);
+        ctx.fillRect(-11, -30, 22, 2);
+        for (let i = 0; i < 5; i++) {
+            const ligado = Math.sin(worldX * 0.02 + p.seed + i * 1.7) > 0;
+            ctx.fillStyle = rgba(ligado ? '#7ef0ff' : '#16455c', ligado ? 0.9 : 0.55);
+            ctx.fillRect(-7, -26 + i * 5, 6, 2);
+            ctx.fillRect(1, -26 + i * 5, 6, 2);
+        }
+    } else if (p.kind === 'datapylon') {
+        ctx.fillStyle = dark;
+        ctx.beginPath();
+        ctx.moveTo(-8, 0); ctx.lineTo(-4, -38); ctx.lineTo(4, -38); ctx.lineTo(8, 0);
+        ctx.closePath(); ctx.fill();
+        // faixa de dados subindo pelo pilar
+        const faixa = (worldX * 0.6 + p.seed * 40) % 38;
+        ctx.fillStyle = rgba('#7ef0ff', 0.5);
+        ctx.fillRect(-6, -faixa, 12, 3);
+        ctx.fillStyle = rgba('#7ef0ff', 0.22);
+        ctx.fillRect(-5, -38, 10, 3);
     }
     ctx.restore();
 }
@@ -1843,6 +1996,7 @@ function spawnAmbient() {
     if (kind === 'pollen') { p.r = rand(1, 2.6); p.sp = rand(0.25, 0.6); p.bob = rand(0, 6.28); p.color = '#fff6b0'; }
     else if (kind === 'sand') { p.r = rand(6, 26); p.sp = rand(1.1, 2.2); p.color = '#e6c48a'; p.y = rand(groundY - 90, groundY - 2); }
     else if (kind === 'firefly') { p.r = rand(1.4, 2.8); p.sp = rand(0.2, 0.5); p.bob = rand(0, 6.28); p.color = '#c9ff6b'; }
+    else if (kind === 'data') { p.r = rand(1.4, 3); p.sp = rand(0.5, 1.5); p.color = '#7ef0ff'; }
     else { p.r = rand(0.6, 2); p.sp = rand(0.8, 2.4); p.color = '#dfe8ff'; }
     ambient.push(p);
 }
@@ -1872,6 +2026,11 @@ function drawAmbient() {
             ctx.fillStyle = p.color;
             ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
             ctx.shadowBlur = 0;
+        } else if (p.kind === 'data') {
+            // bits caindo: traço vertical curto, tipo chuva de código
+            ctx.globalAlpha = 0.5 * fade;
+            ctx.fillStyle = p.color;
+            ctx.fillRect(p.x, p.y, p.r * 0.7, p.r * 2.4);
         } else {
             ctx.globalAlpha = 0.55 * fade;
             ctx.fillStyle = p.color;
@@ -4143,6 +4302,7 @@ function tick() {
     if (running) {
         worldX += gameSpeed;
         updateScenery();
+        updateNet();
         updateAmbient();
     }
 
@@ -4227,6 +4387,7 @@ function render() {
     }
 
     drawSky();
+    drawNet();
     cloudsFar.forEach(c => drawCloud(c, currentTheme.horizon));
     drawFarLayer();
     drawMidLayer();
@@ -4500,26 +4661,21 @@ removePhotoBtn.onclick = () => {
    ========================================================================= */
 document.getElementById("startShipBtn").onclick = startShipMode;
 
-document.getElementById("startBtn").onclick = () => {
+/* Entrada única do modo corrida. Passa por resetGame() porque "Voltar ao
+   menu" não zerava a partida: quem morria, voltava ao menu e clicava em
+   Correr recomeçava com a pontuação e os obstáculos da partida anterior. */
+function beginRun() {
+    unlockAudio();
     gameMode = 'run';
     sessionMode = 'run';
-    document.getElementById("duckBtn").style.display = "flex";
-    document.getElementById("tutorialScreen").style.display = "none";
-    gameStarted = true;
-    gamePaused = false;
-    gameOver = false;
-
-    document.getElementById("shopBtn").style.display = "flex";
-    document.getElementById("soundBtn").style.display = "flex";
-    document.getElementById("pauseBtn").style.display = "flex";
-
-    unlockAudio();
-    if (soundEnabled) bgMusic.play().catch(() => {});
+    resetGame();
 
     if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
         DeviceOrientationEvent.requestPermission().catch(console.error);
     }
-};
+}
+
+document.getElementById("startBtn").onclick = beginRun;
 
 function resetGame() {
     if (sessionMode === 'run' && gameMode === 'ship') { gameMode = 'run'; endCutscene(); }
@@ -4557,6 +4713,7 @@ function resetGame() {
     currentTheme.stars = 0;
     currentTheme.moon = false;
     currentTheme.light = THEMES[1].light;
+    currentTheme.netAlpha = 0;
     buildScenery();
 
     dino.y = groundY - dino.h;

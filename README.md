@@ -11,7 +11,7 @@ Agora em sua versão **Ultimate**, o Dino viaja por mundos diferentes, coleciona
 ## ✨ Novidades da Versão Ultimate
 
 Esta nova versão traz grandes melhorias:
-* 🌎 **Sistema de Fases:** O cenário muda conforme você avança (Fazenda → Deserto → Floresta → Espaço).
+* 🌎 **Sistema de Fases:** O cenário muda conforme você avança (Fazenda → Deserto → Floresta → Espaço → **Ciberespaço**).
 * 🎵 **Música e Som:** Trilha sonora divertida e opção de ligar/desligar áudio.
 * 🛒 **Loja do Dino:** Colete moedas e compre chapéus (Rei, Astronauta, Ninja, etc.).
 * 💾 **Tudo Salvo:** Suas moedas, chapéus, recordes e **até a foto do rosto** ficam salvos para a próxima vez que jogar!
@@ -192,7 +192,22 @@ para brincar, rir e agora viajar até o espaço com o DinoPepe 🦖🚀
 
 ---
 
+## 🛰️ FASE 5: CIBERESPAÇO
+
+A última fase antes da decolagem é uma rede de nós que se ligam sozinhos no
+fundo do céu, com torres de antena, racks de servidor e pilares de dados no
+chão. O fundo foi portado do componente **ConstellationField** do
+[ThreeUI](https://github.com/MengTo/threeui) (MIT, © 2026 Meng To) e adaptado
+para virar cenário de jogo: os nós andam com a paralaxe e a rede entorta por
+onde o Dino passa. Detalhes e o aviso de licença em
+[THIRD-PARTY-LICENSES.md](./THIRD-PARTY-LICENSES.md).
+
+---
+
 ## 📄 Licença
 
 Projeto pessoal e educativo.
 Sinta-se livre para estudar, adaptar e se inspirar.
+
+Componentes de terceiros incluídos estão listados em
+[THIRD-PARTY-LICENSES.md](./THIRD-PARTY-LICENSES.md).
