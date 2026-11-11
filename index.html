@@ -358,6 +358,12 @@ canvas { display: block; position: fixed; top: 0; left: 0; cursor: pointer; }
     box-shadow: 0 6px 0 #4c1d95, 0 12px 30px rgba(168,85,247,.35);
 }
 .btn.ship:active { box-shadow: 0 2px 0 #4c1d95; }
+.btn.fire {
+    color: #fff;
+    background: linear-gradient(135deg, #ffb020, #ff5a1f 55%, #e11d48);
+    box-shadow: 0 6px 0 #9a2a0a, 0 12px 30px rgba(255,90,31,.35);
+}
+.btn.fire:active { box-shadow: 0 2px 0 #9a2a0a; }
 .btn.sm { font-size: 12px; padding: 10px 16px; letter-spacing: .8px; }
 .btn-row { display: flex; gap: 10px; justify-content: center; margin-top: 22px; flex-wrap: wrap; }
 .btn-row .btn { flex: 1 1 auto; min-width: 130px; }
@@ -629,6 +635,42 @@ body.cinematic #removePhoto { opacity: 0; pointer-events: none; }
 }
 body.cinematic #duckBtn { opacity: 0; pointer-events: none; }
 
+/* Rugido do Modo Fogo: enche com os abates (--p) e acende quando está pronto */
+#roarBtn {
+    position: fixed;
+    right: calc(16px + env(safe-area-inset-right, 0px));
+    bottom: calc(26px + env(safe-area-inset-bottom, 0px));
+    width: 72px; height: 72px;
+    border-radius: 22px;
+    border: 1px solid var(--stroke-2);
+    background: linear-gradient(to top, rgba(255,90,31,.55) var(--p, 0%), var(--panel) var(--p, 0%));
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    color: var(--txt);
+    font-size: 1.7rem;
+    z-index: 100;
+    display: none;
+    align-items: center; justify-content: center;
+    box-shadow: 0 6px 20px rgba(0,0,0,.4);
+    cursor: pointer;
+    touch-action: none;
+    filter: saturate(.55);
+    transition: transform .12s ease, filter .2s ease;
+}
+#roarBtn.ready {
+    filter: none;
+    border-color: #ffb020;
+    box-shadow: 0 0 0 2px rgba(255,176,32,.5), 0 0 28px rgba(255,90,31,.7);
+    animation: shine .7s ease-in-out infinite;
+}
+#roarBtn:active { transform: scale(.93); }
+#roarBtn .dl {
+    position: absolute; bottom: -17px; left: 0; width: 100%;
+    font-size: 9px; font-weight: 800; letter-spacing: 1px;
+    color: var(--dim); text-transform: uppercase;
+}
+#roarBtn.ready .dl { color: #ffb020; }
+
 .payout {
     display: flex; gap: 8px; justify-content: center; margin-top: 16px;
 }
@@ -729,6 +771,7 @@ body.cinematic #duckBtn { opacity: 0; pointer-events: none; }
 <button id="soundBtn" class="circle-btn">🔊</button>
 <button id="shopBtn" class="circle-btn">🛒</button>
 <button id="duckBtn" title="Agachar (segure)">⬇<span class="dl">agachar</span></button>
+<button id="roarBtn" title="Rugido">🦖<span class="dl">rugido</span></button>
 
 <!-- ===================== TELA INICIAL ===================== -->
 <div id="tutorialScreen" class="overlay">
@@ -751,6 +794,7 @@ body.cinematic #duckBtn { opacity: 0; pointer-events: none; }
         <div class="btn-row">
             <button class="btn" id="startBtn">🦖 Correr</button>
             <button class="btn ship" id="startShipBtn">🚀 Modo Nave</button>
+            <button class="btn fire" id="startFireBtn">🔥 Modo Fogo</button>
         </div>
         <div class="btn-row" style="margin-top:10px">
             <button class="btn ghost sm" id="openShopFromStart">🛒 Loja</button>
@@ -775,6 +819,7 @@ body.cinematic #duckBtn { opacity: 0; pointer-events: none; }
                 <div class="fact"><span>🌎</span><span>5 mundos e, aos 3.000 pontos, a <b>decolagem</b> para o espaço</span></div>
                 <div class="fact"><span>⬇️</span><span><b>Agache</b> para passar por baixo dos rasantes</span></div>
                 <div class="fact"><span>🚀</span><span>No <b>Modo Nave</b>, segure para subir e solte para descer</span></div>
+                <div class="fact"><span>🔥</span><span>No <b>Modo Fogo</b>, toque onde quer cuspir fogo (segure e arraste para rajada) e proteja os ovos. O fôlego acaba; o <b>Rugido</b> limpa a tela</span></div>
             </div>
         </div>
     </div>
@@ -904,6 +949,7 @@ function resize() {
     // o Dino boiando no ar
     if (!gameStarted || !dino.jumping) dino.y = groundY - dino.h;
     else dino.y += groundY - oldGroundY;
+    if (gameMode === 'fire') fireLayout();
 }
 
 /* =========================================================================
@@ -1118,7 +1164,8 @@ function setProfileName(slot, nome) { localStorage.setItem(`dinopepe_${slot}_nom
 function profileBest(slot) {
     return Math.max(
         Number(localStorage.getItem(`dinopepe_${slot}_recorde`)) || 0,
-        Number(localStorage.getItem(`dinopepe_${slot}_recorde_nave`)) || 0
+        Number(localStorage.getItem(`dinopepe_${slot}_recorde_nave`)) || 0,
+        Number(localStorage.getItem(`dinopepe_${slot}_recorde_fogo`)) || 0
     );
 }
 
@@ -1226,6 +1273,8 @@ const achievementsList = [
     { id: 'survivor', name: 'Sobrevivente', desc: 'Alcance 1000 pontos', icon: '🏆', xp: 200 },
     { id: 'combo_king', name: 'Rei do Combo', desc: 'Faça um combo x10', icon: '⚡', xp: 150 },
     { id: 'speed_demon', name: 'Demônio da Velocidade', desc: 'Alcance fase 4', icon: '🚀', xp: 300 },
+    { id: 'dragao', name: 'Dragão', desc: 'Derrote um chefão no Modo Fogo', icon: '🐲', xp: 300 },
+    { id: 'guardiao', name: 'Guardião do Ninho', desc: 'Chegue à onda 10 no Modo Fogo', icon: '🥚', xp: 400 },
     { id: 'millionaire', name: 'Milionário', desc: 'Ganhe 1000 moedas no total', icon: '🤑', xp: 500 }
 ];
 
@@ -1600,11 +1649,12 @@ function phaseForScore(s) {
     return 5;   // aos 3000 a corrida vira Modo Nave
 }
 
-function updateTheme() {
-    const p = phaseForScore(score);
+// "forcada": o Modo Fogo escolhe a fase pela onda, não pela pontuação
+function updateTheme(forcada) {
+    const p = forcada || phaseForScore(score);
     if (p !== currentPhase) {
         currentPhase = p;
-        showPhaseText(THEMES[p].label);
+        if (!forcada) showPhaseText(THEMES[p].label);
         refreshScenery();
     }
     setMusicMood(currentPhase === 1 ? 'fazenda' : currentPhase === 2 ? 'deserto'
@@ -2928,8 +2978,11 @@ function speedCap() {
     return Math.max(7, (VW + 20 - (dino.x + dino.w - 10)) / REACT_MIN);
 }
 
-function drawObstacles() {
-    obstacles.forEach(o => {
+function drawObstacles() { obstacles.forEach(drawObstacleSprite); }
+
+// separado do laço para o Modo Fogo desenhar os mesmos bichos
+function drawObstacleSprite(o) {
+    {
         const cx = o.x + o.w / 2, cy = o.y + o.h / 2;
 
         // sombra no chão (mais fraca quanto mais alto o inimigo estiver)
@@ -3180,7 +3233,7 @@ function drawObstacles() {
         }
 
         ctx.restore();
-    });
+    }
 }
 
 /* =========================================================================
@@ -3197,7 +3250,7 @@ function drawScore() {
         hudCache.coins = totalCoins;
         document.getElementById('coinVal').textContent = totalCoins.toLocaleString('pt-BR');
     }
-    const bestNow = sessionMode === 'ship' ? bestShip : bestScore;
+    const bestNow = bestOf(sessionMode);
     if (hudCache.best !== bestNow) {
         hudCache.best = bestNow;
         document.getElementById('bestVal').textContent = bestNow.toLocaleString('pt-BR');
@@ -3261,6 +3314,15 @@ function endGame() {
     gameOver = true;
     bgMusic.pause();
 
+    if (gameMode === 'fire') {
+        boomSound();
+        fire.aiming = false;
+        shakeMag = 16; hitStop = 8; flash = 0.5;
+        deathTimer = 70;
+        finishScoreboard();
+        return;
+    }
+
     if (gameMode === 'ship') {
         boomSound();
         ship.dying = true;
@@ -3298,9 +3360,11 @@ function finishScoreboard() {
     // o combo é teto-limitado: no Modo Nave ele encadeia quase infinito
     // (fileiras de moedas renovam o timer) e sozinho pagava a loja inteira
     // no espaço a pontuação sobe bem mais rápido, então o divisor é maior
-    const divisor = (sessionMode === 'ship' || gameMode === 'ship') ? 6 : 3;
+    // no Modo Fogo a pontuação é ~5x a da corrida (medido com bots), então o
+    // divisor e o XP acompanham para a loja não sair em meia dúzia de partidas
+    const divisor = sessionMode === 'fire' ? 12 : (sessionMode === 'ship' || gameMode === 'ship') ? 6 : 3;
     const bonus = Math.floor(finalScoreNum / divisor) + Math.min(runMaxCombo, 25) * 6;
-    const xpGain = Math.floor(finalScoreNum / 10);
+    const xpGain = Math.floor(finalScoreNum / (sessionMode === 'fire' ? 30 : 10));
     ganharMoedas(bonus);
     playerXP += xpGain;
     const antesLevel = playerLevel;
@@ -3313,13 +3377,15 @@ function finishScoreboard() {
     up.classList.toggle('on', playerLevel > antesLevel);
     if (playerLevel > antesLevel) up.textContent = `⬆ LEVEL ${playerLevel}! ${levelPerks()}`;
 
-    const ship_ = sessionMode === 'ship';
-    const prev = ship_ ? bestShip : bestScore;
+    const prev = bestOf(sessionMode);
     const isRecord = finalScoreNum > prev;
     if (isRecord) {
-        if (ship_) {
+        if (sessionMode === 'ship') {
             bestShip = finalScoreNum;
             localStorage.setItem(K("recorde_nave"), bestShip);
+        } else if (sessionMode === 'fire') {
+            bestFire = finalScoreNum;
+            localStorage.setItem(K("recorde_fogo"), bestFire);
         } else {
             bestScore = finalScoreNum;
         }
@@ -3332,12 +3398,13 @@ function finishScoreboard() {
         ? `Faltaram <b>${(prev - finalScoreNum + 1).toLocaleString('pt-BR')}</b> pontos para bater o recorde` : '';
 
     document.getElementById("goModeTag").textContent =
-        sessionMode === 'ship' ? '🚀 Modo Nave'
+        sessionMode === 'fire' ? `🔥 Modo Fogo · onda ${fire.wave}`
+        : sessionMode === 'ship' ? '🚀 Modo Nave'
         : gameMode === 'ship' ? '🦖 Corrida → 🚀 Espaço'
         : '🦖 Corrida';
     document.getElementById("finalScoreBig").textContent = finalScoreNum.toLocaleString('pt-BR');
     document.getElementById("goCoins").textContent = totalCoins.toLocaleString('pt-BR');
-    document.getElementById("goBest").textContent = (ship_ ? bestShip : bestScore).toLocaleString('pt-BR');
+    document.getElementById("goBest").textContent = bestOf(sessionMode).toLocaleString('pt-BR');
     document.getElementById("goCombo").textContent = "x" + runMaxCombo;
     document.getElementById("goLevel").textContent = playerLevel;
     document.getElementById("recordBadge").classList.toggle("on", isRecord);
@@ -3356,6 +3423,7 @@ const DESAFIOS = [
     { id: 'pontos',  meta: [700, 1100, 1600], premio: 260, txt: n => `Faça ${n} pontos numa partida`,   ler: () => Math.floor(score) },
     { id: 'combo',   meta: [12, 18, 25],  premio: 240, txt: n => `Chegue a um combo de x${n}`,          ler: () => runMaxCombo },
     { id: 'espaco',  meta: [500, 900, 1400], premio: 300, txt: n => `Faça ${n} pontos no Modo Nave`,    ler: () => gameMode === 'ship' ? Math.floor(score) : 0 },
+    { id: 'fogo',    meta: [4, 6, 8],     premio: 280, txt: n => `Chegue à onda ${n} no Modo Fogo`,     ler: () => gameMode === 'fire' ? fire.wave : 0 },
     { id: 'destruir',meta: [4, 7, 10],    premio: 250, txt: n => `Destrua ${n} inimigos com o Dash`,    ler: () => runKills }
 ];
 
@@ -3384,6 +3452,8 @@ let desafioAtual = desafioDeHoje();
 
 function checarDesafio() {
     if (!gameStarted || gameOver || desafioFeito(desafioAtual)) return;
+    // pontos, combo e moedas sobem muito mais rápido no Modo Fogo: lá só vale o desafio dele
+    if (gameMode === 'fire' && desafioAtual.id !== 'fogo') return;
     if (desafioAtual.ler() >= desafioAtual.n) {
         localStorage.setItem(K('desafio_' + desafioAtual.chave), '1');
         desafioOk = true;
@@ -3429,6 +3499,8 @@ const SHIP_TOP_BAIXO = 66;     // tela baixa (celular deitado): o HUD vira uma l
 let gameMode = 'run';          // 'run' | 'ship'
 let sessionMode = 'run';       // com o que a partida COMEÇOU (define o recorde)
 let bestShip = Number(localStorage.getItem(K("recorde_nave"))) || 0;
+let bestFire = Number(localStorage.getItem(K("recorde_fogo"))) || 0;
+function bestOf(modo) { return modo === 'ship' ? bestShip : modo === 'fire' ? bestFire : bestScore; }
 
 const ship = {
     x: 0, y: 0, vy: 0, w: 58, h: 30,
@@ -4517,6 +4589,655 @@ function startShipMode() {
 }
 
 /* =========================================================================
+   MODO FOGO 🔥
+   O Dino fica parado no meio, de guarda no ninho, e cospe fogo em quem desce
+   do céu. Pensado para o dedo: tocar num ponto dispara para lá; segurar e
+   arrastar vira rajada. O que dá jogo é o fôlego: a rajada esvazia a barra e,
+   zerada, o Dino engasga — então é mirar, não segurar o dedo na tela.
+   Cada abate enche o Rugido, que varre a tela. Quem pousa quebra um ovo;
+   sem ovos, acabou. As ondas passeiam pelos 5 mundos, cada um com seus
+   bichos, e a cada 5 ondas vem um chefão.
+   Reaproveita cenário, sprites dos inimigos, partículas, combo e economia.
+   ========================================================================= */
+const FOE = {
+    bird:    { w: 34, h: 24, hp: 1, spd: 1.35, pts: 10 },
+    vulture: { w: 40, h: 26, hp: 2, spd: 1.15, pts: 15 },
+    ghost:   { w: 30, h: 32, hp: 2, spd: 0.95, pts: 20 },
+    meteor:  { w: 34, h: 34, hp: 1, spd: 2.20, pts: 15 },
+    ufo:     { w: 42, h: 22, hp: 4, spd: 0.80, pts: 40 },
+    drone:   { w: 40, h: 22, hp: 3, spd: 1.20, pts: 30 },
+    virus:   { w: 30, h: 30, hp: 2, spd: 1.00, pts: 25 },
+    boss:    { w: 42, h: 22, hp: 30, spd: 0.90, pts: 300, sprite: 'ufo' }
+};
+// os bichos de cada mundo (índice = fase do cenário)
+const FOE_MUNDO = { 1: ['bird'], 2: ['vulture'], 3: ['ghost'], 4: ['meteor', 'ufo'], 5: ['drone', 'virus'] };
+
+const BREATH_MAX = 100, BREATH_COST = 6, FIRE_COOL = 7, SHOT_SPEED = 13;
+// curva de dificuldade (calibrada com bots, ver README)
+const FALL_STEP = 0.06, FALL_MAX = 2.6;
+const ROAR_MAX = 12;
+const roarBtn = document.getElementById('roarBtn');
+
+const fire = {
+    aiming: false, ax: 0, ay: 0, face: 1, lastKillSnd: 0,
+    cool: 0, breath: BREATH_MAX, choke: 0, idle: 0, recoil: 0,
+    shots: [], foes: [], drops: [], eggs: [],
+    wave: 0, phase: 1, queue: [], spawnT: 0, gap: 0, boss: null,
+    roar: 0, ring: 0, triple: 0, freeze: 0, dome: false
+};
+
+function fireScale() { return clamp(Math.min(VW, VH) / 260, 1.2, 1.8); }
+// a queda acompanha a altura da tela: o bicho leva o mesmo tempo para chegar
+// ao chão em pé ou deitado, e as ondas vão acelerando (com teto)
+function fireFall() { return clamp(groundY / 620, 0.6, 1.3) * Math.min(FALL_MAX, 1 + (fire.wave - 1) * FALL_STEP); }
+function fireMouth() { return { x: dino.x + dino.w / 2 + fire.face * 26, y: dino.y + 14 }; }
+
+function fireLayout() {
+    dino.x = VW / 2 - dino.w / 2;
+    dino.y = groundY - dino.h;
+    const off = [-84, -58, 84];
+    fire.eggs.forEach((e, i) => { e.x = VW / 2 + off[i]; });
+}
+
+function showPlayUI() {
+    document.getElementById('tutorialScreen').style.display = 'none';
+    document.getElementById('gameOverScreen').style.display = 'none';
+    document.getElementById('pauseScreen').style.display = 'none';
+    document.getElementById('shopBtn').style.display = 'flex';
+    document.getElementById('soundBtn').style.display = 'flex';
+    document.getElementById('pauseBtn').style.display = 'flex';
+    document.getElementById('pauseBtn').textContent = '⏸';
+}
+
+function startFireMode() {
+    unlockAudio();
+    sessionMode = 'fire';
+    gameMode = 'fire';
+    endCutscene();
+    resetFire();
+    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+        DeviceOrientationEvent.requestPermission().catch(console.error);
+    }
+}
+
+function resetFire() {
+    gameOver = false; gameStarted = true; gamePaused = false;
+    score = 0; gameSpeed = 0; baseGameSpeed = 0;
+    obstacles = []; coins = []; powerups = [];
+    particles = []; floatingTexts = []; ambient = [];
+    activePowerups = { shield: 0, magnet: 0, slowmo: 0, dash: 0 };
+    combo = 0; comboTimer = 0;
+    runCoins = 0; runMaxCombo = 0; runKills = 0;
+    shakeMag = 0; flash = 0; hitStop = 0; deathTimer = 0;
+
+    fire.aiming = false; fire.face = 1;
+    fire.cool = 0; fire.breath = BREATH_MAX; fire.choke = 0; fire.idle = 0; fire.recoil = 0;
+    fire.shots = []; fire.foes = []; fire.drops = [];
+    fire.eggs = [0, 1, 2].map(() => ({ x: 0, ok: true, wob: 0 }));
+    fire.queue = []; fire.boss = null; fire.gap = 0;
+    fire.roar = 0; fire.ring = 0; fire.triple = 0; fire.freeze = 0; fire.dome = false;
+
+    currentPhase = 1;
+    snapTheme();
+    dino.vy = 0; dino.jumping = false; dino.doubleJumped = false; dino.dying = false;
+    dino.ducking = false; dino.duck = 0; dino.rot = 0; dino.squash = 0; dino.trail = [];
+    fireLayout();
+
+    showPlayUI();
+    document.getElementById('duckBtn').style.display = 'none';
+    roarBtn.style.display = 'flex';
+    if (soundEnabled) bgMusic.play().catch(() => {});
+
+    fireHud.html = null; fireHud.p = null;      // a barra pode ter sido reescrita por outro modo
+    fireStartWave(1);
+    createFloatingText(VW / 2 - 96, groundY - 150, 'TOQUE PARA CUSPIR FOGO 🔥', '#ffb020');
+}
+
+/* ---------------- ondas ---------------- */
+function fireStartWave(n) {
+    fire.wave = n;
+    fire.phase = Math.floor((n - 1) / 2) % 5 + 1;      // um mundo a cada 2 ondas
+    fire.spawnT = 70;
+    const chefe = n % 5 === 0;
+    if (chefe) {
+        fire.queue = ['boss'];
+    } else {
+        // os bichos do mundo atual pesam mais; os já vistos aparecem de vez em quando
+        const pool = [];
+        for (let f = 1; f <= 5; f++) {
+            if (n <= 10 && f > fire.phase) continue;
+            const peso = f === fire.phase ? 3 : 1;
+            FOE_MUNDO[f].forEach(t => { for (let i = 0; i < peso; i++) pool.push(t); });
+        }
+        const qtd = Math.min(40, Math.round(5 + n * 2.5));
+        fire.queue = [];
+        for (let i = 0; i < qtd; i++) fire.queue.push(pool[Math.floor(Math.random() * pool.length)]);
+    }
+    showPhaseText(chefe ? `⚠️ CHEFÃO · ONDA ${n}` : `ONDA ${n}`);
+    if (n >= 10) unlockAchievement('guardiao');
+}
+
+function spawnFoe(type, o) {
+    o = o || {};
+    const d = FOE[type];
+    const sc = (o.sc || 1) * fireScale() * (type === 'boss' ? 2.6 : 1);
+    const w = d.w * sc, h = d.h * sc;
+    const x = o.x !== undefined ? o.x - w / 2 : rand(8, VW - 8 - w);
+    const y = o.y !== undefined ? o.y : -h - 8;
+    const vivos = fire.eggs.filter(e => e.ok);
+    const alvo = vivos.length ? vivos[Math.floor(Math.random() * vivos.length)].x : VW / 2;
+    // a cada 10 ondas todo mundo aguenta um tiro a mais
+    const hp = type === 'boss' ? d.hp + 12 * (fire.wave / 5 - 1) : (o.hp || d.hp) + Math.floor((fire.wave - 1) / 10);
+    const f = {
+        type, x, y, w, h, sc, hp, maxHp: hp, spd: d.spd * (o.spdK || 1), pts: o.pts !== undefined ? o.pts : d.pts,
+        t: 0, bx: x, vx: o.vx || 0, dir: Math.random() < 0.5 ? -1 : 1, mini: !!o.mini,
+        hover: VH * rand(0.14, 0.26), drops: 0, dropT: 0, hit: 0, dead: false,
+        spr: { x: 0, y: 0, w: d.w, h: d.h, type: d.sprite || type, frame: rand(0, 6), seed: rand(0, 100), extra: true }
+    };
+    // o meteoro vem reto na direção de um ovo
+    if (type === 'meteor') f.vx = (alvo - (x + w / 2)) / Math.max(40, groundY - y - h) * f.spd;
+    if (type === 'boss') { f.hover = hazTop() + 10; fire.boss = f; }   // abaixo do HUD, para a barra de vida aparecer
+    fire.foes.push(f);
+    return f;
+}
+
+function fireSpawner() {
+    if (fire.queue.length) {
+        const cap = Math.min(16, 4 + Math.floor(fire.wave * 0.7));
+        if (--fire.spawnT <= 0 && fire.foes.length < cap) {
+            spawnFoe(fire.queue.shift());
+            fire.spawnT = Math.max(15, 74 - fire.wave * 4.5) * (fire.freeze > 0 ? 1.6 : 1);
+        }
+        return;
+    }
+    if (fire.foes.length) return;
+    // onda limpa: respiro, prêmio e a próxima
+    if (fire.gap === 0) {
+        fire.gap = 110;
+        const premio = 40 * fire.wave;
+        score += premio;
+        ganharMoedas(4 + fire.wave);
+        runCoins += 4 + fire.wave;
+        saveGameData();
+        createFloatingText(VW / 2 - 70, VH * 0.36, `ONDA LIMPA! +${premio}`, '#3ddc84');
+        powerupSound();
+    } else if (--fire.gap === 0) {
+        fireStartWave(fire.wave + 1);
+    }
+}
+
+/* ---------------- tiro ---------------- */
+function fireAimAt(x, y) {
+    fire.ax = x;
+    fire.ay = Math.min(y, groundY - 26);       // não dá para atirar no chão
+    fire.face = x < VW / 2 ? -1 : 1;
+}
+function fireDown(x, y) {
+    if (!gameStarted || gameOver || gamePaused) return;
+    fire.aiming = true;
+    fireAimAt(x, y);
+    fireShoot();                               // o toque já dispara, sem esperar o próximo frame
+}
+function fireMove(x, y) { if (fire.aiming) fireAimAt(x, y); }
+function fireUp() { fire.aiming = false; }
+
+function fireShoot() {
+    if (fire.cool > 0 || fire.choke > 0) return;
+    if (fire.breath < BREATH_COST) {
+        // sem fôlego: engasga e fica um instante sem atirar
+        fire.choke = 80;
+        fire.aiming = false;
+        const m = fireMouth();
+        createFloatingText(m.x - 26, m.y - 22, 'COF COF! 💨', '#cfd6e4');
+        noise({ dur: 0.25, vol: 0.12, filter: 900, filterEnd: 200 });
+        return;
+    }
+    const m = fireMouth();
+    const base = Math.atan2(fire.ay - m.y, fire.ax - m.x);
+    const leque = fire.triple > 0 ? [-0.17, 0, 0.17] : [0];
+    leque.forEach(d => {
+        fire.shots.push({ x: m.x, y: m.y, vx: Math.cos(base + d) * SHOT_SPEED, vy: Math.sin(base + d) * SHOT_SPEED, life: 120 });
+    });
+    fire.breath -= BREATH_COST;
+    fire.cool = FIRE_COOL;
+    fire.idle = 0;
+    fire.recoil = 1;
+    tone({ freq: 520, freqEnd: 170, dur: 0.07, type: 'sawtooth', vol: 0.05 });
+}
+
+function tryRoar() {
+    if (gameMode !== 'fire' || !gameStarted || gameOver || gamePaused) return;
+    if (fire.roar < ROAR_MAX || fire.ring > 0) return;
+    fire.roar = 0;
+    fire.ring = 1;
+    shakeMag = 16; flash = 0.35;
+    tone({ freq: 140, freqEnd: 45, dur: 0.8, type: 'sawtooth', vol: 0.3 });
+    noise({ dur: 0.7, vol: 0.22, filter: 600, filterEnd: 2600 });
+    createFloatingText(dino.x - 30, dino.y - 34, 'ROOOAAAR!', '#ffb020');
+}
+['touchstart', 'mousedown'].forEach(ev =>
+    roarBtn.addEventListener(ev, e => { e.preventDefault(); tryRoar(); }, { passive: false }));
+
+function fireDropAt(x, y) {
+    if (fire.drops.length >= 2 || Math.random() > 0.13) return;
+    const quebrado = fire.eggs.some(e => !e.ok);
+    const r = Math.random();
+    const kind = quebrado && r < 0.16 ? 'egg' : r < 0.44 ? 'triple' : r < 0.74 ? 'ice' : 'dome';
+    if (kind === 'dome' && fire.dome) return;
+    fire.drops.push({ kind, x, y, t: rand(0, 6), r: 19 });
+}
+
+function killFoe(f, peloRugido) {
+    if (f.dead) return;
+    f.dead = true;
+    addCombo();
+    const pts = Math.round(f.pts * (1 + Math.min(combo, 20) * 0.05));
+    score += pts;
+    const moedas = f.type === 'boss' ? 40 : 1;
+    ganharMoedas(moedas); runCoins += moedas;
+    const cx = f.x + f.w / 2, cy = f.y + f.h / 2;
+    createParticles(cx, cy, '#ffb300', { count: f.type === 'boss' ? 40 : 14, speed: 5, life: 34 });
+    createParticles(cx, cy, '#ffffff', { count: 6, speed: 7, life: 18, size: 2 });
+    createFloatingText(cx - 14, cy - 10, '+' + pts, '#ffd24a');
+    if (animFrame - fire.lastKillSnd > 4) { killSound(); fire.lastKillSnd = animFrame; }
+    if (!peloRugido) fire.roar = Math.min(ROAR_MAX, fire.roar + 1);
+
+    if (f.type === 'virus' && !f.mini) {
+        // o vírus se divide em dois pequenos e rápidos
+        [-1, 1].forEach(s => spawnFoe('virus', { x: cx + s * 14, y: f.y, sc: 0.62, hp: 1, pts: 10, mini: true, vx: s * 2.4, spdK: 1.5 }));
+    }
+    if (f.type === 'boss') {
+        fire.boss = null;
+        shakeMag = 20; flash = 0.5; hitStop = 8;
+        boomSound();
+        unlockAchievement('dragao');
+        // o chefão leva a escolta junto e devolve um ovo
+        fire.foes.forEach(q => { if (!q.dead) killFoe(q, true); });
+        const e = fire.eggs.find(q => !q.ok);
+        if (e) { e.ok = true; e.wob = 1; createFloatingText(e.x - 20, groundY - 50, '+1 🥚', '#fff6d0'); }
+    } else {
+        shakeMag = Math.max(shakeMag, 3);
+        fireDropAt(cx, cy);
+    }
+}
+
+// alguém chegou ao chão: a cúpula segura uma vez; senão, lá se vai um ovo
+function fireLand(f) {
+    const cx = f.x + f.w / 2;
+    createParticles(cx, groundY - 6, '#ff5252', { count: 16, speed: 5, life: 30 });
+    createDust(cx, groundY, 1.2);
+    if (fire.dome) {
+        fire.dome = false;
+        createParticles(VW / 2, groundY - 60, '#7fd8ff', { count: 24, speed: 6, life: 30 });
+        createFloatingText(VW / 2 - 60, groundY - 150, 'CÚPULA QUEBROU!', '#7fd8ff');
+        hitSound(); shakeMag = Math.max(shakeMag, 8);
+        return;
+    }
+    const vivos = fire.eggs.filter(e => e.ok);
+    if (!vivos.length) return;
+    const e = vivos.reduce((a, b) => Math.abs(b.x - cx) < Math.abs(a.x - cx) ? b : a);
+    e.ok = false; e.wob = 1;
+    combo = 0;
+    hitSound();
+    shakeMag = Math.max(shakeMag, 12); hitStop = 5; flash = Math.max(flash, 0.3);
+    createParticles(e.x, groundY - 10, '#fff6d0', { count: 14, speed: 4, life: 34 });
+    createFloatingText(e.x - 34, groundY - 56, 'OVO QUEBRADO! 💔', '#ff5c8a');
+    if (vivos.length === 1) endGame();
+}
+
+function updateFoes() {
+    const lento = fire.freeze > 0 ? 0.4 : 1;
+    const k = fireFall() * lento;
+    fire.foes.forEach(f => {
+        f.t += lento;
+        f.spr.frame += 0.2 * lento;
+        if (f.hit > 0) f.hit--;
+        const quica = () => {
+            if (f.x < 6) { f.x = 6; f.dir = 1; }
+            if (f.x + f.w > VW - 6) { f.x = VW - 6 - f.w; f.dir = -1; }
+        };
+        switch (f.type) {
+            case 'bird': case 'vulture':
+                f.x += Math.sin(f.t * 0.07 + f.spr.seed) * 2.4 * lento;
+                f.y += f.spd * k;
+                break;
+            case 'ghost':
+                f.x = f.bx + Math.sin(f.t * 0.035 + f.spr.seed) * Math.min(90, VW * 0.22);
+                f.y += f.spd * k;
+                break;
+            case 'meteor':
+                f.x += f.vx * k; f.y += f.spd * k;
+                if (animFrame % 3 === 0) {
+                    createParticles(f.x + f.w / 2, f.y + f.h * 0.2, Math.random() < 0.5 ? '#ff8c00' : '#ffd24a',
+                        { count: 1, speed: 1, life: 16, size: rand(2, 4), grav: -0.03, round: true, lift: 0 });
+                }
+                break;
+            case 'ufo':
+                // desce até uma altura, patrulha soltando 3 bombas e só então pousa
+                if (f.y < f.hover) f.y += f.spd * k * 1.8;
+                else if (f.drops < 3) {
+                    f.x += f.dir * 1.7 * lento; quica();
+                    f.dropT += lento;
+                    if (f.dropT > 120) {
+                        f.dropT = 0; f.drops++;
+                        spawnFoe('meteor', { x: f.x + f.w / 2, y: f.y + f.h, sc: 0.62, pts: 5, spdK: 0.8 });
+                    }
+                } else { f.x += f.dir * 1.0 * lento; quica(); f.y += f.spd * k; }
+                break;
+            case 'drone':
+                // anda de lado, depois mergulha, e repete
+                if (Math.floor(f.t / 55) % 2 === 0) { f.x += f.dir * 3.2 * lento; quica(); }
+                else f.y += f.spd * k * 2.3;
+                break;
+            case 'virus':
+                f.x += (Math.sin(f.t * 0.05 + f.spr.seed) * 1.2 + f.vx) * lento;
+                f.vx *= 0.97;
+                f.y += f.spd * k;
+                break;
+            case 'boss':
+                if (f.y < f.hover) f.y += f.spd * k * 1.5;
+                else {
+                    f.x += f.dir * 1.3 * lento; quica();
+                    f.dropT += lento;
+                    if (f.dropT > Math.max(55, 105 - fire.wave * 2)) {
+                        f.dropT = 0; f.drops++;
+                        const tipos = FOE_MUNDO[fire.phase].filter(t => t !== 'ufo');
+                        const t = f.drops % 3 === 0 ? 'meteor' : tipos[Math.floor(Math.random() * tipos.length)];
+                        if (fire.foes.length < 9) spawnFoe(t, { x: f.x + f.w / 2 + rand(-f.w * 0.3, f.w * 0.3), y: f.y + f.h * 0.8, sc: t === 'meteor' ? 0.7 : 1 });
+                    }
+                }
+                break;
+        }
+        f.x = clamp(f.x, 2, VW - 2 - f.w);
+        if (f.type !== 'boss' && f.y + f.h >= groundY) { f.dead = true; fireLand(f); }
+    });
+    fire.foes = fire.foes.filter(f => !f.dead);
+}
+
+function updateShots() {
+    fire.shots.forEach(s => {
+        s.x += s.vx; s.y += s.vy; s.life--;
+        if (s.x < -20 || s.x > VW + 20 || s.y < -20 || s.y > groundY) s.life = 0;
+        if (s.life <= 0) return;
+        // power-up flutuante: acertou, ativou
+        for (const d of fire.drops) {
+            if (!d.got && Math.hypot(s.x - d.x, s.y - d.y) < d.r + 8) {
+                d.got = true; s.life = 0; fireCollect(d); return;
+            }
+        }
+        for (const f of fire.foes) {
+            if (f.dead) continue;
+            if (s.x > f.x - 7 && s.x < f.x + f.w + 7 && s.y > f.y - 7 && s.y < f.y + f.h + 7) {
+                s.life = 0;
+                f.hp--; f.hit = 5;
+                createParticles(s.x, s.y, '#ffb300', { count: 5, speed: 3, life: 16, size: 2.5 });
+                if (f.hp <= 0) killFoe(f);
+                else { if (f.type !== 'boss') f.y -= 5; tone({ freq: 300, freqEnd: 200, dur: 0.05, type: 'square', vol: 0.05 }); }
+                return;
+            }
+        }
+    });
+    fire.shots = fire.shots.filter(s => s.life > 0);
+    fire.foes = fire.foes.filter(f => !f.dead);
+}
+
+function fireCollect(d) {
+    powerupSound();
+    flash = Math.max(flash, 0.16);
+    createParticles(d.x, d.y, '#ffd700', { count: 14, speed: 4 });
+    if (d.kind === 'triple') { fire.triple = 480; createFloatingText(d.x - 40, d.y, 'TIRO TRIPLO!', '#ffb020'); }
+    else if (d.kind === 'ice') { fire.freeze = 420; createFloatingText(d.x - 30, d.y, 'CONGELOU!', '#9fe8ff'); }
+    else if (d.kind === 'dome') { fire.dome = true; createFloatingText(d.x - 26, d.y, 'CÚPULA!', '#7fd8ff'); }
+    else {
+        const e = fire.eggs.find(q => !q.ok);
+        if (e) { e.ok = true; e.wob = 1; createFloatingText(e.x - 20, groundY - 50, '+1 🥚', '#fff6d0'); }
+    }
+}
+
+function fireTick() {
+    const antes = currentPhase;
+    updateTheme(fire.phase);
+    if (currentPhase !== antes) {
+        // o mundo não rola neste modo, então os enfeites trocam na hora
+        const kinds = THEMES[currentPhase].props;
+        nearLayer.forEach(p => { p.kind = kinds[Math.floor(Math.random() * kinds.length)]; });
+    }
+    updateNet();
+    updateAmbient();
+
+    // o Dino parado ainda respira, balança a cauda e pisca
+    dino.runPhase += 0.035;
+    if (dino.blink > 0) dino.blink--;
+    else if (--dino.blinkTimer <= 0) { dino.blink = 7; dino.blinkTimer = 100 + Math.random() * 180; }
+    fire.eggs.forEach(e => { if (e.wob > 0.01) e.wob *= 0.9; else e.wob = 0; });
+    if (fire.recoil > 0.02) fire.recoil *= 0.8; else fire.recoil = 0;
+
+    if (gameOver) return;
+
+    if (fire.cool > 0) fire.cool--;
+    if (fire.triple > 0) fire.triple--;
+    if (fire.freeze > 0) fire.freeze--;
+    if (fire.choke > 0) {
+        fire.choke--;
+        fire.breath = Math.min(BREATH_MAX, fire.breath + BREATH_MAX / 80);
+        if (animFrame % 6 === 0) {
+            const m = fireMouth();
+            createParticles(m.x, m.y, '#aab3c5', { count: 1, speed: 0.8, life: 26, size: rand(3, 6), grav: -0.05, round: true });
+        }
+    } else {
+        fire.idle++;
+        if (fire.aiming) fireShoot();
+        // só recupera fôlego quem para de cuspir
+        if (fire.idle > 14) fire.breath = Math.min(BREATH_MAX, fire.breath + 1);
+    }
+
+    // rugido: um anel que cresce a partir do Dino e leva tudo que toca
+    if (fire.ring > 0) {
+        fire.ring += Math.max(VW, VH) / 34;
+        const ox = dino.x + dino.w / 2, oy = dino.y + 20;
+        fire.foes.forEach(f => {
+            if (f.dead || f.roared) return;
+            if (Math.hypot(f.x + f.w / 2 - ox, f.y + f.h / 2 - oy) < fire.ring) {
+                f.roared = true;
+                if (f.type === 'boss') { f.hp -= 12; f.hit = 8; if (f.hp <= 0) killFoe(f); else setTimeout(() => { f.roared = false; }, 900); }
+                else killFoe(f, true);
+            }
+        });
+        fire.foes = fire.foes.filter(f => !f.dead);
+        if (fire.ring > Math.hypot(VW, VH)) fire.ring = 0;
+    }
+
+    updateShots();
+    updateFoes();
+
+    fire.drops.forEach(d => {
+        d.t += 0.05;
+        d.y += 0.7 * clamp(groundY / 620, 0.6, 1.3);
+        d.x = clamp(d.x + Math.sin(d.t) * 0.8, 24, VW - 24);
+    });
+    fire.drops = fire.drops.filter(d => !d.got && d.y < groundY - 10);
+
+    if (!gameOver) fireSpawner();
+    updateCombo();
+    checarDesafio();
+}
+
+/* ---------------- desenho ---------------- */
+function drawNest() {
+    const cx = VW / 2;
+    // palha: dois montes, um de cada lado do Dino
+    ctx.fillStyle = '#8a6a2f';
+    [[-71, 34], [84, 20]].forEach(([dx, rw]) => {
+        ctx.beginPath(); ctx.ellipse(cx + dx, groundY + 1, rw, 8, 0, Math.PI, 0); ctx.fill();
+    });
+    ctx.strokeStyle = '#c9a24e'; ctx.lineWidth = 1.4;
+    for (let i = 0; i < 16; i++) {
+        const lado = i < 11 ? -71 : 84, larg = i < 11 ? 30 : 17;
+        const x = cx + lado + (hash(i * 9.1) - 0.5) * 2 * larg;
+        ctx.beginPath(); ctx.moveTo(x, groundY + 1); ctx.lineTo(x + (hash(i * 3.7) - 0.5) * 10, groundY - 6 - hash(i) * 4); ctx.stroke();
+    }
+    fire.eggs.forEach((e, i) => {
+        const y = groundY - 13;
+        ctx.save();
+        ctx.translate(e.x, y + 12);
+        ctx.rotate(Math.sin(animFrame * 0.6 + i) * 0.25 * e.wob);
+        ctx.translate(0, -12);
+        if (e.ok) {
+            const g = ctx.createRadialGradient(-3, -5, 2, 0, 0, 15);
+            g.addColorStop(0, '#fffdf2'); g.addColorStop(1, '#e6d5a8');
+            ctx.fillStyle = g;
+            ctx.beginPath(); ctx.ellipse(0, 0, 9.5, 13, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = 'rgba(120,170,90,0.55)';
+            ctx.beginPath(); ctx.arc(-3, 2, 2, 0, Math.PI * 2); ctx.arc(3, -4, 1.6, 0, Math.PI * 2); ctx.arc(2, 6, 1.4, 0, Math.PI * 2); ctx.fill();
+        } else {
+            // casca quebrada
+            ctx.fillStyle = '#cdbf99';
+            ctx.beginPath();
+            ctx.moveTo(-9.5, 4); ctx.lineTo(-6, -1); ctx.lineTo(-3, 4); ctx.lineTo(0, -2); ctx.lineTo(3, 4); ctx.lineTo(6, -1); ctx.lineTo(9.5, 4);
+            ctx.quadraticCurveTo(9, 13, 0, 13); ctx.quadraticCurveTo(-9, 13, -9.5, 4);
+            ctx.fill();
+        }
+        ctx.restore();
+    });
+}
+
+function drawFoe(f) {
+    const cx = f.x + f.w / 2, cy = f.y + f.h / 2;
+    f.spr.x = cx - f.spr.w / 2; f.spr.y = cy - f.spr.h / 2;
+    ctx.save();
+    ctx.translate(cx, cy); ctx.scale(f.sc, f.sc); ctx.translate(-cx, -cy);
+    drawObstacleSprite(f.spr);
+    ctx.restore();
+    if (f.hit > 0) {
+        ctx.fillStyle = `rgba(255,255,255,${0.12 * f.hit})`;
+        ctx.beginPath(); ctx.ellipse(cx, cy, f.w * 0.55, f.h * 0.6, 0, 0, Math.PI * 2); ctx.fill();
+    }
+    if (fire.freeze > 0) {
+        ctx.strokeStyle = 'rgba(159,232,255,0.7)'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.ellipse(cx, cy, f.w * 0.6, f.h * 0.7, 0, 0, Math.PI * 2); ctx.stroke();
+    }
+    // vida: só em quem aguenta mais de um tiro e já apanhou (o chefão, sempre)
+    if (f.type === 'boss' || (f.maxHp > 1 && f.hp < f.maxHp)) {
+        const bw = f.type === 'boss' ? f.w * 0.9 : Math.max(26, f.w * 0.7), bx = cx - bw / 2, by = f.y - 10;
+        ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(bx, by, bw, 5);
+        ctx.fillStyle = f.type === 'boss' ? '#ff5c8a' : '#ffb020';
+        ctx.fillRect(bx, by, bw * clamp(f.hp / f.maxHp, 0, 1), 5);
+    }
+}
+
+function fireRender() {
+    drawBackdrop();
+    drawNest();
+
+    if (fire.dome) {
+        const g = ctx.createRadialGradient(VW / 2, groundY, 60, VW / 2, groundY, 132);
+        g.addColorStop(0, 'rgba(127,216,255,0)'); g.addColorStop(1, 'rgba(127,216,255,0.28)');
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(VW / 2, groundY, 132, Math.PI, 0); ctx.fill();
+        ctx.strokeStyle = `rgba(160,230,255,${0.6 + 0.25 * Math.sin(animFrame * 0.1)})`; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(VW / 2, groundY, 132, Math.PI, 0); ctx.stroke();
+    }
+
+    // power-ups flutuando numa bolha
+    const icone = { triple: '🔱', ice: '❄️', dome: '🛡️', egg: '🥚' };
+    fire.drops.forEach(d => {
+        ctx.fillStyle = 'rgba(255,225,120,0.16)';
+        ctx.beginPath(); ctx.arc(d.x, d.y, d.r + 4 + Math.sin(d.t * 3) * 2, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.65)'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2); ctx.stroke();
+        ctx.font = '20px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(icone[d.kind], d.x, d.y + 1);
+        ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    });
+
+    fire.foes.forEach(drawFoe);
+
+    // bolas de fogo
+    fire.shots.forEach(s => {
+        // gota de fogo: cauda afilada para trás, cabeça com miolo claro
+        const nx = -s.vy / SHOT_SPEED, ny = s.vx / SHOT_SPEED;
+        ctx.fillStyle = 'rgba(255,120,20,0.6)';
+        ctx.beginPath();
+        ctx.moveTo(s.x + nx * 7, s.y + ny * 7);
+        ctx.lineTo(s.x - s.vx * 2.4, s.y - s.vy * 2.4);
+        ctx.lineTo(s.x - nx * 7, s.y - ny * 7);
+        ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#ff5a1f';
+        ctx.beginPath(); ctx.arc(s.x, s.y, 8, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#ffd23c';
+        ctx.beginPath(); ctx.arc(s.x + s.vx * 0.15, s.y + s.vy * 0.15, 4.6, 0, Math.PI * 2); ctx.fill();
+    });
+
+    drawParticles();
+
+    // o Dino vira para o lado da mira e dá um tranco para trás a cada cuspida
+    const mx = dino.x + dino.w / 2;
+    ctx.save();
+    ctx.translate(mx - fire.face * fire.recoil * 3, 0);
+    ctx.scale(fire.face, 1);
+    ctx.translate(-mx, 0);
+    dino.draw();
+    ctx.restore();
+
+    // mira
+    if (fire.aiming && fire.choke <= 0) {
+        const m = fireMouth();
+        ctx.strokeStyle = 'rgba(255,255,255,0.28)'; ctx.lineWidth = 2;
+        ctx.setLineDash([5, 9]);
+        ctx.beginPath(); ctx.moveTo(m.x, m.y); ctx.lineTo(fire.ax, fire.ay); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.strokeStyle = 'rgba(255,176,32,0.9)';
+        ctx.beginPath(); ctx.arc(fire.ax, fire.ay, 15, 0, Math.PI * 2); ctx.stroke();
+    }
+
+    if (fire.ring > 0) {
+        const ox = dino.x + dino.w / 2, oy = dino.y + 20;
+        const a = clamp(1 - fire.ring / Math.hypot(VW, VH), 0, 1);
+        ctx.strokeStyle = `rgba(255,176,32,${a})`; ctx.lineWidth = 10;
+        ctx.beginPath(); ctx.arc(ox, oy, fire.ring, 0, Math.PI * 2); ctx.stroke();
+        ctx.strokeStyle = `rgba(255,255,255,${a * 0.7})`; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(ox, oy, fire.ring * 0.92, 0, Math.PI * 2); ctx.stroke();
+    }
+
+    // barra de fôlego, no chão embaixo do Dino
+    const bw = 92, bx = VW / 2 - bw / 2, by = groundY + 14;
+    const f = fire.breath / BREATH_MAX;
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.beginPath(); ctx.roundRect ? ctx.roundRect(bx - 2, by - 2, bw + 4, 12, 6) : ctx.rect(bx - 2, by - 2, bw + 4, 12); ctx.fill();
+    ctx.fillStyle = fire.choke > 0 ? '#8d99b3' : f < 0.3 ? '#ff5252' : '#ffb020';
+    ctx.beginPath(); ctx.roundRect ? ctx.roundRect(bx, by, bw * f, 8, 4) : ctx.rect(bx, by, bw * f, 8); ctx.fill();
+    ctx.font = "800 9px system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
+    ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.textAlign = 'center';
+    ctx.fillText(fire.choke > 0 ? 'SEM FÔLEGO' : 'FÔLEGO', VW / 2, by + 22);
+    ctx.textAlign = 'left';
+
+    drawFloatingTexts();
+
+    ctx.globalCompositeOperation = 'overlay';
+    ctx.fillStyle = currentTheme.light;
+    ctx.fillRect(0, 0, VW, VH);
+    ctx.globalCompositeOperation = 'source-over';
+}
+
+const fireHud = {};
+function drawFireBar() {
+    let html = `<span class="active-powerup">🌊 onda ${fire.wave}</span>`;
+    if (fire.triple > 0) html += `<span class="active-powerup dash">🔱 ${Math.ceil(fire.triple / 60)}s</span>`;
+    if (fire.freeze > 0) html += `<span class="active-powerup">❄️ ${Math.ceil(fire.freeze / 60)}s</span>`;
+    if (fire.dome) html += `<span class="active-powerup">🛡️</span>`;
+    if (fireHud.html !== html || fireHud.wave !== fire.wave) {
+        fireHud.html = html; fireHud.wave = fire.wave;
+        document.getElementById('powerupBar').innerHTML = html;
+    }
+    const p = Math.round(fire.roar / ROAR_MAX * 100);
+    if (fireHud.p !== p) {
+        fireHud.p = p;
+        roarBtn.style.setProperty('--p', p + '%');
+        roarBtn.classList.toggle('ready', p >= 100);
+    }
+}
+
+/* =========================================================================
    LOOP — timestep fixo.
    Antes o jogo somava velocidade por frame: em tela de 120Hz ele rodava
    com o dobro da velocidade. Agora o mundo anda em passos de 1/60s reais,
@@ -4534,6 +5255,18 @@ function tick() {
     if (gameMode === 'ship') {
         if (cs) { if (!gamePaused) updateCutscene(); return; }
         if (!gamePaused) spaceTick();
+        if (gameOver && deathTimer > 0) {
+            deathTimer--;
+            if (deathTimer === 0) showGameOver();
+        }
+        updateParticles();
+        updateFloatingTexts();
+        return;
+    }
+
+    // --- modo fogo ---
+    if (gameMode === 'fire') {
+        if (!gamePaused) fireTick();
         if (gameOver && deathTimer > 0) {
             deathTimer--;
             if (deathTimer === 0) showGameOver();
@@ -4579,6 +5312,18 @@ function tick() {
 
     updateParticles();
     updateFloatingTexts();
+}
+
+function drawBackdrop() {
+    drawSky();
+    drawNet();
+    cloudsFar.forEach(c => drawCloud(c, currentTheme.horizon));
+    drawFarLayer();
+    drawMidLayer();
+    cloudsNear.forEach(c => drawCloud(c, currentTheme.skyBottom));
+    drawNearLayer();
+    drawGround();
+    drawAmbient();
 }
 
 let vignetteCache = null;
@@ -4633,16 +5378,20 @@ function render() {
         return;
     }
 
-    drawSky();
-    drawNet();
-    cloudsFar.forEach(c => drawCloud(c, currentTheme.horizon));
-    drawFarLayer();
-    drawMidLayer();
-    cloudsNear.forEach(c => drawCloud(c, currentTheme.skyBottom));
-    drawNearLayer();
-    drawGround();
+    if (gameMode === 'fire') {
+        fireRender();
+        ctx.restore();
+        drawVignette();
+        if (flash > 0.01) {
+            ctx.fillStyle = `rgba(255,255,255,${flash * 0.6})`;
+            ctx.fillRect(0, 0, VW, VH);
+        }
+        drawScore();
+        drawFireBar();
+        return;
+    }
 
-    drawAmbient();
+    drawBackdrop();
     drawCoins();
     drawPowerups();
     drawObstacles();
@@ -4697,6 +5446,8 @@ function pressJump() {
     // durante a animação de lançamento, tocar pula a cena
     if (cs) { if (cs.kind === 'launch' && cs.t < 400) endCutscene(); return; }
     if (!gameStarted || gameOver || gamePaused) return;
+    // no Modo Fogo o "pulo" (espaço, ou balançar o celular) é o rugido
+    if (gameMode === 'fire') { tryRoar(); return; }
     if (gameMode === 'ship') { ship.thrust = true; return; }
     if (dino.ducking && !dino.jumping) return;
     jumpHeld = true;
@@ -4755,8 +5506,11 @@ const duckBtn = document.getElementById('duckBtn');
     duckBtn.addEventListener(ev, e => { e.preventDefault(); setDuck(true); }, { passive: false }));
 ['touchend', 'touchcancel', 'mouseup', 'mouseleave'].forEach(ev =>
     duckBtn.addEventListener(ev, () => setDuck(false)));
-canvas.addEventListener("mousedown", pressJump);
-window.addEventListener("mouseup", releaseJump);
+canvas.addEventListener("mousedown", e => {
+    if (gameMode === 'fire') fireDown(e.clientX, e.clientY); else pressJump();
+});
+canvas.addEventListener("mousemove", e => { if (gameMode === 'fire') fireMove(e.clientX, e.clientY); });
+window.addEventListener("mouseup", () => { releaseJump(); fireUp(); });
 /* Toque na tela: tocar pula na hora (sem atraso), e arrastar o dedo para
    baixo agacha. Como o toque já disparou o pulo, o arrasto precisa cancelá-lo
    — mas só numa janela curta, quando o Dino mal saiu do chão, senão a volta
@@ -4770,12 +5524,19 @@ canvas.addEventListener("touchstart", e => {
     const t = e.changedTouches[0];
     swipeY = t.clientY;
     swipeT = Date.now();
+    if (gameMode === 'fire') { fireDown(t.clientX, t.clientY); return; }
     swipeAtivo = true;
     swipeDucked = false;
     pressJump();
 }, { passive: false });
 
 canvas.addEventListener("touchmove", e => {
+    if (gameMode === 'fire') {
+        e.preventDefault();
+        const t = e.changedTouches[0];
+        fireMove(t.clientX, t.clientY);
+        return;
+    }
     if (!swipeAtivo || swipeDucked || gameMode !== 'run') return;
     const t = e.changedTouches[0];
     if (t.clientY - swipeY < SWIPE_DIST) return;
@@ -4788,6 +5549,7 @@ canvas.addEventListener("touchmove", e => {
 
 function soltarToque() {
     releaseJump();
+    fireUp();
     if (swipeDucked) setDuck(false);
     swipeAtivo = false;
     swipeDucked = false;
@@ -4920,6 +5682,7 @@ removePhotoBtn.onclick = () => {
    INÍCIO / RESET / PAUSA
    ========================================================================= */
 document.getElementById("startShipBtn").onclick = startShipMode;
+document.getElementById("startFireBtn").onclick = startFireMode;
 
 /* Entrada única do modo corrida. Passa por resetGame() porque "Voltar ao
    menu" não zerava a partida: quem morria, voltava ao menu e clicava em
@@ -4937,8 +5700,20 @@ function beginRun() {
 
 document.getElementById("startBtn").onclick = beginRun;
 
+// volta o cenário para a fase 1 de uma vez, sem transição
+function snapTheme() {
+    ['skyTop', 'skyBottom', 'horizon', 'ground', 'soil', 'far', 'mid', 'near', 'sunColor',
+     'fog', 'sunX', 'sunY', 'sunR', 'clouds'].forEach(k => { currentTheme[k] = THEMES[1][k]; });
+    currentTheme.stars = 0;
+    currentTheme.moon = false;
+    currentTheme.light = THEMES[1].light;
+    currentTheme.netAlpha = 0;
+    buildScenery();
+}
+
 function resetGame() {
     document.getElementById("pauseScreen").style.display = "none";
+    if (gameMode === 'fire') { resetFire(); return; }
     if (sessionMode === 'run' && gameMode === 'ship') { gameMode = 'run'; endCutscene(); }
     if (gameMode === 'ship') {
         gameOver = false; gameStarted = true; gamePaused = false;
@@ -4972,13 +5747,7 @@ function resetGame() {
     shakeMag = 0; flash = 0; hitStop = 0; deathTimer = 0;
     activePowerups.shield = startShieldFrames();
 
-    ['skyTop', 'skyBottom', 'horizon', 'ground', 'soil', 'far', 'mid', 'near', 'sunColor',
-     'fog', 'sunX', 'sunY', 'sunR', 'clouds'].forEach(k => { currentTheme[k] = THEMES[1][k]; });
-    currentTheme.stars = 0;
-    currentTheme.moon = false;
-    currentTheme.light = THEMES[1].light;
-    currentTheme.netAlpha = 0;
-    buildScenery();
+    snapTheme();
 
     dino.y = groundY - dino.h;
     dino.vy = 0;
@@ -5014,7 +5783,10 @@ function goMenu() {
     document.getElementById("shopBtn").style.display = "none";
     document.getElementById("soundBtn").style.display = "none";
     document.getElementById("duckBtn").style.display = "none";
+    roarBtn.style.display = "none";
     dino.ducking = false;
+    dino.x = 80;                       // o Modo Fogo põe o Dino no meio da tela
+    dino.y = groundY - dino.h;
     bgMusic.pause();
     renderPerfis();
     renderDesafio();
@@ -5039,7 +5811,7 @@ function setPaused(v) {
     pauseScreen.style.display = v ? "flex" : "none";
     if (v) {
         document.getElementById("pauseScore").textContent = Math.floor(score).toLocaleString('pt-BR');
-        dino.ducking = false; jumpHeld = false; ship.thrust = false;
+        dino.ducking = false; jumpHeld = false; ship.thrust = false; fire.aiming = false;
         bgMusic.pause();
     } else if (soundEnabled) bgMusic.play().catch(() => {});
 }
