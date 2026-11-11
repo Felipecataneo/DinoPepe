@@ -118,6 +118,33 @@ O recorde do Modo Nave é guardado separado do recorde da corrida.
 
 ---
 
+## 🔥 Modo Fogo
+
+O terceiro modo, na tela inicial, feito para o dedo. O Dino fica de guarda no ninho e
+cospe fogo em quem desce do céu.
+
+* 👆 **Toque num ponto e ele cospe para lá.** Segurar e arrastar vira rajada.
+* 💨 **Fôlego:** a rajada esvazia a barra; zerou, o Dino engasga e fica um instante sem
+  atirar. Só recupera quem para de cuspir — é para mirar, não para segurar o dedo.
+* 🥚 **Três ovos são as vidas.** Quem pousa quebra um; sem ovos, acabou.
+* 🦖 **Rugido:** cada abate enche o botão; cheio, um toque (ou **balançar o celular**,
+  ou Espaço) solta um anel que varre a tela.
+* 🫧 **Power-ups vêm em bolhas** e é preciso acertá-las: 🔱 tiro triplo, ❄️ congelar,
+  🛡️ cúpula sobre o ninho, 🥚 ovo de volta.
+* 🌎 **As ondas passeiam pelos 5 mundos**, um a cada duas ondas, cada um com seus bichos:
+  pássaro que ziguezagueia, abutre, fantasma que ondula, meteoro que mira um ovo, OVNI que
+  patrulha soltando bombas, drone que anda de lado e mergulha, vírus que se divide em dois.
+* 👾 **Chefão a cada 5 ondas:** uma nave-mãe que solta escolta. Derrotado, leva todo mundo
+  junto e devolve um ovo.
+* Recorde próprio, um desafio do dia ("chegue à onda N") e dois troféus novos.
+
+A curva de dificuldade foi calibrada com bots (6 partidas cada, celular em pé e deitado):
+um jogador fraco simulado cai por volta da onda 10 (~3,5 min), um médio na 13, e mira
+perfeita chega à 13–19. São bots, não gente: vale ajustar depois de ver alguém jogando.
+O pagamento em moedas é dividido por 12 (a pontuação aqui é bem maior que na corrida).
+
+---
+
 ## 🔧 Correções e interface (última rodada)
 
 **Bugs corrigidos**
