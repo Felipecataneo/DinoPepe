@@ -13,7 +13,7 @@
  *     segundo plano — são grandes e raramente mudam.
  */
 
-const VERSION = "v5";
+const VERSION = "v6";
 const HTML_CACHE = `dinopepe-html-${VERSION}`;
 const ASSET_CACHE = `dinopepe-assets-${VERSION}`;
 
@@ -26,9 +26,12 @@ const ASSETS = [
 
 self.addEventListener("install", event => {
   event.waitUntil(
-    caches.open(ASSET_CACHE)
-      .then(cache => cache.addAll(ASSETS))
-      .catch(() => {})
+    Promise.all([
+      caches.open(ASSET_CACHE).then(cache => cache.addAll(ASSETS)),
+      // o HTML entra no cache já na instalação: antes só entrava quando uma
+      // navegação passava pelo SW, então offline só funcionava da 2ª visita
+      caches.open(HTML_CACHE).then(cache => cache.add("./index.html"))
+    ]).catch(() => {})
   );
   self.skipWaiting();
 });
@@ -63,7 +66,7 @@ self.addEventListener("fetch", event => {
           caches.open(HTML_CACHE).then(c => c.put(req, copy)).catch(() => {});
           return res;
         })
-        .catch(() => caches.match(req).then(r => r || caches.match("./index.html")))
+        .catch(() => caches.match(req, { ignoreSearch: true }).then(r => r || caches.match("./index.html")))
     );
     return;
   }
