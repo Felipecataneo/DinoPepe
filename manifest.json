@@ -1,12 +1,12 @@
 {
   "name": "DinoPepe 🦖",
   "short_name": "DinoPepe",
-  "description": "O DinoPepe correndo na fazenda",
+  "description": "O DinoPepe correndo da fazenda até o espaço",
   "start_url": "./",
   "display": "standalone",
-  "orientation": "portrait",
-  "background_color": "#c8facc",
-  "theme_color": "#4caf50",
+  "orientation": "any",
+  "background_color": "#080b12",
+  "theme_color": "#080b12",
   "icons": [
     {
       "src": "icon-192.png",

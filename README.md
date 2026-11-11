@@ -118,6 +118,45 @@ O recorde do Modo Nave é guardado separado do recorde da corrida.
 
 ---
 
+## 🔧 Correções e interface (última rodada)
+
+**Bugs corrigidos**
+* 💰 **O bônus de fim de partida agora é sempre salvo.** Antes só era gravado quando havia
+  recorde; fechar o jogo ou trocar de perfil depois de uma partida comum perdia as moedas.
+* 🚀 **Modo Nave zera as estatísticas a cada partida.** Combo máximo, moedas e kills
+  vazavam de uma partida para a outra, pagando bônus de combo repetido e acumulando
+  progresso do desafio do dia.
+* 📱 **Tempo de reação mínimo na corrida.** O obstáculo nasce na borda da tela, então com
+  o celular em pé sobravam 0,27s para reagir no fim da corrida (1,24s no desktop). A
+  velocidade agora tem um teto por largura de tela que garante ~0,55s; a dificuldade
+  continua subindo pelo intervalo entre obstáculos.
+* ⭐ **Perks de level com teto** (power-ups até +3s, escudo inicial até 5s). Sem teto, em
+  level alto o jogador ficava com power-up permanente.
+* 📲 **Offline já na primeira visita** (o HTML entra no cache na instalação do Service Worker).
+* Um valor corrompido no armazenamento não impede mais o jogo de abrir; a cutscene de
+  lançamento respeita a pausa.
+
+**Jogabilidade**
+* ⬇️ **Rasante agora vem em coluna.** Um voador rasante sozinho dava para pular por cima,
+  então agachar era opcional. Agora ele vem empilhado até acima do alcance do pulo duplo:
+  só passa agachando. A coluna conta como um inimigo só (pontos, combo e Dash).
+* 🛰️ **O Ciberespaço tem inimigos próprios:** drone, firewall e vírus (antes repetia os
+  do espaço).
+* 🏆 **Troféus de moedas contam o total ganho**, não o saldo — gastar na loja não atrasa mais.
+
+**Interface**
+* ⏸️ **Tela de pausa de verdade:** Continuar, Reiniciar e Menu (antes era só um texto).
+* 🏠 **Menu enxuto:** jogar fica no topo; as instruções foram para "Como jogar".
+* 📷 **A foto mudou para o menu.** O botão ficava escondido atrás da tela inicial e só
+  aparecia durante a partida.
+* ⌨️ **Teclado:** `Enter` começa e joga de novo, `P`/`Esc` pausa, `Esc` fecha loja e avisos.
+* 📐 **Celular deitado:** as telas não cortam mais o topo, tudo rola e cabe; o app instalado
+  não fica mais travado em pé.
+* Fim de jogo mostra **quanto faltou para o recorde**; nome do perfil editado em janela
+  própria; respeito às áreas do notch.
+
+---
+
 ## 🎮 Sobre o jogo
 
 O DinoPepe é um "endless runner" moderno e personalizado:
@@ -154,7 +193,7 @@ O DinoPepe é um "endless runner" moderno e personalizado:
 
 ## 📸 Personalização e Loja
 
-1. **Foto:** Clique no botão roxo 📸 para colocar o rosto do Pedro (ou o seu!) no Dino. A foto não some mais ao fechar o jogo — e o ✕ ao lado remove.
+1. **Foto:** Na tela inicial, toque no quadrado 📷 **Seu rosto** para colocar o rosto do Pedro (ou o seu!) no Dino. A foto fica salva por perfil — e o ✕ no canto remove.
 2. **Loja:** Clique no carrinho 🛒. Compre chapéus divertidos com as moedas que você ganhou jogando.
 
 ---

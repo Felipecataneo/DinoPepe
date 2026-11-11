@@ -6,7 +6,7 @@
 <title>DinoPepe: Ultimate Edition 🦖</title>
 
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#4caf50">
+<meta name="theme-color" content="#080b12">
 
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -51,7 +51,8 @@ canvas { display: block; position: fixed; top: 0; left: 0; cursor: pointer; }
 /* ======================= HUD ======================= */
 #ui {
     position: fixed;
-    top: 10px; left: 10px;
+    top: calc(10px + env(safe-area-inset-top, 0px));
+    left: calc(10px + env(safe-area-inset-left, 0px));
     max-width: calc(100% - 140px);
     z-index: 10;
     text-align: left;
@@ -169,18 +170,40 @@ canvas { display: block; position: fixed; top: 0; left: 0; cursor: pointer; }
     transition: transform .12s ease, border-color .12s ease;
 }
 .circle-btn:active { transform: scale(.92); }
-#pauseBtn  { top: 12px; right: 12px; }
-#soundBtn  { top: 12px; right: 68px; }
-#shopBtn   { top: 68px; right: 12px; border-color: rgba(255,201,60,.5); }
-#photoBtn  { top: 68px; right: 68px; display: flex; overflow: hidden; padding: 0; border-color: rgba(34,211,238,.5); }
+.circle-btn { --st: calc(12px + env(safe-area-inset-top, 0px)); --sr: calc(12px + env(safe-area-inset-right, 0px)); }
+#pauseBtn  { top: var(--st); right: var(--sr); }
+#soundBtn  { top: var(--st); right: calc(var(--sr) + 56px); }
+#shopBtn   { top: calc(var(--st) + 56px); right: var(--sr); border-color: rgba(255,201,60,.5); }
+
+/* foto: agora mora no menu (antes era um botão solto por cima da partida,
+   escondido atrás da tela inicial que mandava clicar nele) */
+.me-row { display: flex; gap: 10px; align-items: stretch; margin-bottom: 4px; }
+.me-row #desafioCard { flex: 1; margin: 0; min-width: 0; }
+.avatar-wrap { position: relative; flex: 0 0 auto; }
+#photoBtn {
+    width: 62px; height: 100%; min-height: 62px;
+    border-radius: 14px;
+    border: 1px dashed rgba(34,211,238,.55);
+    background: rgba(34,211,238,.08);
+    color: var(--txt);
+    cursor: pointer;
+    overflow: hidden;
+    padding: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    font-family: var(--ui);
+}
+#photoBtn span { font-size: 20px; line-height: 1; }
+#photoBtn small { font-size: 8.5px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: var(--acc-2); }
+#photoBtn.has-photo { border-style: solid; }
+#photoBtn.has-photo small { display: none; }
 
 #photoBtn img { width: 100%; height: 100%; object-fit: cover; display: none; }
 #photoBtn.has-photo img { display: block; }
 #photoBtn.has-photo span { display: none; }
 
 #removePhoto {
-    position: fixed;
-    top: 104px; right: 104px;
+    position: absolute;
+    top: -7px; right: -7px;
     width: 22px; height: 22px;
     border-radius: 50%;
     background: var(--acc-3);
@@ -200,9 +223,13 @@ canvas { display: block; position: fixed; top: 0; left: 0; cursor: pointer; }
     position: fixed; inset: 0;
     display: none;
     flex-direction: column;
-    align-items: center; justify-content: center;
-    padding: 20px;
+    /* centraliza pelo margin:auto do cartão: com justify-content:center o
+       topo de um cartão mais alto que a tela ficava cortado e inalcançável */
+    align-items: center; justify-content: flex-start;
+    padding: calc(20px + env(safe-area-inset-top, 0px)) calc(20px + env(safe-area-inset-right, 0px))
+             calc(20px + env(safe-area-inset-bottom, 0px)) calc(20px + env(safe-area-inset-left, 0px));
     overflow-y: auto;
+    touch-action: pan-y;
     background:
         radial-gradient(120% 80% at 50% 0%, rgba(34,211,238,.10), transparent 60%),
         radial-gradient(90% 70% at 50% 100%, rgba(61,220,132,.10), transparent 60%),
@@ -215,6 +242,27 @@ canvas { display: block; position: fixed; top: 0; left: 0; cursor: pointer; }
 /* a loja tem que ficar acima do Game Over e do tutorial */
 #shopScreen { z-index: 1000; background: radial-gradient(120% 80% at 50% 0%, rgba(255,201,60,.08), transparent 60%), rgba(6,8,14,.985); }
 #modal { z-index: 1100; background: rgba(4,6,11,.75); }
+#pauseScreen { background: rgba(6,8,14,.62); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+#pauseScreen .card { max-width: 340px; }
+.pause-score { font-family: var(--num); font-size: 34px; font-weight: 700; margin-top: 10px; font-variant-numeric: tabular-nums; }
+.pause-score small { font-family: var(--ui); font-size: 11px; font-weight: 700; color: var(--dim); letter-spacing: 1.5px; margin-left: 6px; }
+.btn-col { display: grid; gap: 12px; margin-top: 22px; }
+.kbd-hint { margin-top: 14px; font-size: 11px; color: var(--dim); }
+.kbd-hint .key { padding: 2px 7px; font-size: 10px; border-bottom-width: 2px; }
+@media (hover: none) { .kbd-hint { display: none; } }
+#howTo { margin-top: 18px; }
+#howTo[hidden] { display: none; }
+.go-gap { margin-top: 10px; font-size: 12px; color: var(--dim); }
+.go-gap b { color: var(--gold); font-family: var(--num); }
+.go-gap:empty { display: none; }
+#modalInput {
+    display: none; width: 100%; margin-top: 14px; padding: 12px 14px;
+    border-radius: 12px; border: 1px solid var(--stroke-2);
+    background: rgba(0,0,0,.35); color: var(--txt);
+    font-family: var(--ui); font-size: 16px; font-weight: 700; text-align: center;
+    user-select: text; -webkit-user-select: text; outline: none;
+}
+#modalInput:focus { border-color: var(--acc); }
 
 .card {
     width: 100%;
@@ -224,6 +272,7 @@ canvas { display: block; position: fixed; top: 0; left: 0; cursor: pointer; }
     background: var(--panel);
     border: 1px solid var(--stroke);
     box-shadow: 0 24px 70px rgba(0,0,0,.6);
+    margin: auto;
     animation: rise .3s cubic-bezier(.2,.9,.3,1.2);
 }
 @keyframes rise { from { opacity: 0; transform: translateY(14px) scale(.97); } to { opacity: 1; transform: none; } }
@@ -467,6 +516,7 @@ canvas { display: block; position: fixed; top: 0; left: 0; cursor: pointer; }
     background: #10141d;
     border: 1px solid var(--stroke-2);
     box-shadow: 0 24px 70px rgba(0,0,0,.7);
+    margin: auto;
     animation: rise .22s cubic-bezier(.2,.9,.3,1.2);
 }
 #modalIcon { font-size: 38px; line-height: 1; }
@@ -613,8 +663,27 @@ body.cinematic #duckBtn { opacity: 0; pointer-events: none; }
 }
 @media (max-height: 620px) {
     #shopItems { max-height: 38vh; }
-    .facts { display: none; }
     .card { padding: 18px 16px; }
+}
+/* celular deitado: pouco espaço vertical, então tudo encolhe e as
+   estatísticas viram uma linha só */
+@media (max-height: 480px) {
+    .overlay { padding-top: 10px; padding-bottom: 10px; }
+    .card { padding: 14px 16px; max-width: 620px; }
+    .logo { font-size: 2rem; }
+    .rule { margin: 10px 0; }
+    .btn-row { margin-top: 12px; }
+    .btn { padding: 11px 18px; font-size: 13px; }
+    .big-score { font-size: 2.6rem; margin-top: 4px; }
+    .record-badge { margin-top: 6px; padding: 4px 12px; }
+    .payout { margin-top: 8px; }
+    .stats { grid-template-columns: repeat(4, 1fr); margin-top: 10px; }
+    .stat { padding: 7px 6px; }
+    .stat .v { font-size: 16px; }
+    #shopItems { max-height: 34vh; }
+    .btn-col { margin-top: 12px; gap: 9px; }
+    /* deitado, o botão da esquerda ficava em cima do Dino */
+    #duckBtn { left: auto; right: calc(16px + env(safe-area-inset-right, 0px)); }
 }
 </style>
 </head>
@@ -643,14 +712,11 @@ body.cinematic #duckBtn { opacity: 0; pointer-events: none; }
         <div class="xp-track"><div id="xpFill"></div></div>
     </div>
     <div id="powerupBar"></div>
-    <input type="file" id="faceUpload" accept="image/*">
 </div>
 
 <button id="pauseBtn" class="circle-btn">⏸</button>
 <button id="soundBtn" class="circle-btn">🔊</button>
 <button id="shopBtn" class="circle-btn">🛒</button>
-<button id="photoBtn" class="circle-btn" title="Seu rosto no Dino"><span>📷</span><img id="previewImg" src="" alt=""></button>
-<button id="removePhoto" title="Remover foto">✕</button>
 <button id="duckBtn" title="Agachar (segure)">⬇<span class="dl">agachar</span></button>
 
 <!-- ===================== TELA INICIAL ===================== -->
@@ -662,26 +728,14 @@ body.cinematic #duckBtn { opacity: 0; pointer-events: none; }
         <div class="rule"></div>
 
         <div class="perfis" id="perfis"></div>
-        <div id="desafioCard"></div>
-
-        <div class="keys">
-            <span class="key">ESPAÇO</span>
-            <span class="key">↑</span>
-            <span class="key">TOQUE</span>
+        <div class="me-row">
+            <div class="avatar-wrap">
+                <button id="photoBtn" title="Seu rosto no Dino"><span>📷</span><small>Seu rosto</small><img id="previewImg" src="" alt=""></button>
+                <button id="removePhoto" title="Remover foto">✕</button>
+            </div>
+            <div id="desafioCard"></div>
         </div>
-        <div class="hint">
-            Toque rápido = pulo curto · <b>segure para pular mais alto</b><br>
-            No ar, toque de novo para o <b>pulo duplo</b><br>
-            <b>Arraste para baixo</b> (ou botão ⬇) para agachar
-        </div>
-
-        <div class="facts">
-            <div class="fact"><span>⚡</span><span>O <b>Dash</b> atravessa e destrói os inimigos</span></div>
-            <div class="fact"><span>🔥</span><span>Encadeie <b>combos</b> para multiplicar os pontos</span></div>
-            <div class="fact"><span>🌎</span><span>5 mundos: fazenda, deserto, floresta, espaço e <b>ciberespaço</b></span></div>
-            <div class="fact"><span>⬇️</span><span><b>Agache</b> para passar por baixo dos rasantes: arraste o dedo para baixo, use o botão ⬇ ou a seta ↓</span></div>
-            <div class="fact"><span>📷</span><span>Coloque <b>seu rosto</b> no Dino pelo botão da câmera</span></div>
-        </div>
+        <input type="file" id="faceUpload" accept="image/*">
 
         <div class="btn-row">
             <button class="btn" id="startBtn">🦖 Correr</button>
@@ -689,7 +743,43 @@ body.cinematic #duckBtn { opacity: 0; pointer-events: none; }
         </div>
         <div class="btn-row" style="margin-top:10px">
             <button class="btn ghost sm" id="openShopFromStart">🛒 Loja</button>
+            <button class="btn ghost sm" id="howToBtn" aria-expanded="false">❔ Como jogar</button>
         </div>
+
+        <div id="howTo" hidden>
+            <div class="keys">
+                <span class="key">ESPAÇO</span>
+                <span class="key">↑</span>
+                <span class="key">↓</span>
+                <span class="key">TOQUE</span>
+            </div>
+            <div class="hint">
+                Toque rápido = pulo curto · <b>segure para pular mais alto</b><br>
+                No ar, toque de novo para o <b>pulo duplo</b><br>
+                <b>Arraste para baixo</b> (ou botão ⬇) para agachar
+            </div>
+            <div class="facts">
+                <div class="fact"><span>⚡</span><span>O <b>Dash</b> atravessa e destrói os inimigos</span></div>
+                <div class="fact"><span>🔥</span><span>Encadeie <b>combos</b> para multiplicar os pontos</span></div>
+                <div class="fact"><span>🌎</span><span>5 mundos e, aos 3.000 pontos, a <b>decolagem</b> para o espaço</span></div>
+                <div class="fact"><span>⬇️</span><span><b>Agache</b> para passar por baixo dos rasantes</span></div>
+                <div class="fact"><span>🚀</span><span>No <b>Modo Nave</b>, segure para subir e solte para descer</span></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===================== PAUSA ===================== -->
+<div id="pauseScreen" class="overlay">
+    <div class="card">
+        <div class="go-title" style="color:var(--acc-2)">Pausado</div>
+        <div class="pause-score"><span id="pauseScore">0</span><small>PTS</small></div>
+        <div class="btn-col">
+            <button class="btn" id="resumeBtn">▶ Continuar</button>
+            <button class="btn ghost sm" id="pauseRestartBtn">↻ Reiniciar</button>
+            <button class="btn ghost sm" id="pauseMenuBtn">← Menu</button>
+        </div>
+        <div class="kbd-hint"><span class="key">P</span> ou <span class="key">ESC</span> para continuar</div>
     </div>
 </div>
 
@@ -732,10 +822,11 @@ body.cinematic #duckBtn { opacity: 0; pointer-events: none; }
         <div class="tag" style="letter-spacing:3px">pontos</div>
 
         <div class="payout">
-            <span id="goPayCoins">+0</span>
+            <span id="goPayCoins">+0 🪙</span>
             <span class="xp" id="goPayXp">+0 XP</span>
         </div>
         <div id="goLevelUp"></div>
+        <div class="go-gap" id="goGap"></div>
 
         <div class="stats">
             <div class="stat"><div class="k">Moedas</div><div class="v" id="goCoins">0</div></div>
@@ -751,6 +842,7 @@ body.cinematic #duckBtn { opacity: 0; pointer-events: none; }
         <div class="btn-row" style="margin-top:10px">
             <button class="btn ghost sm" id="backToMenu">← Menu</button>
         </div>
+        <div class="kbd-hint"><span class="key">ENTER</span> joga de novo</div>
     </div>
 </div>
 
@@ -760,6 +852,7 @@ body.cinematic #duckBtn { opacity: 0; pointer-events: none; }
         <div id="modalIcon">🛒</div>
         <div id="modalTitle"></div>
         <div id="modalText"></div>
+        <input id="modalInput" type="text" maxlength="12" autocomplete="off" autocapitalize="words" spellcheck="false">
         <div class="modal-actions">
             <button class="btn ghost" id="modalNo">Cancelar</button>
             <button class="btn" id="modalYes">Comprar</button>
@@ -1035,14 +1128,34 @@ function profileBest(slot) {
     localStorage.setItem('dinopepe_migrado_v1', '1');
 })();
 
+// um valor corrompido no localStorage não pode impedir o jogo de abrir
+function lerLista(key, padrao) {
+    try {
+        const v = JSON.parse(localStorage.getItem(key));
+        return Array.isArray(v) ? v : padrao;
+    } catch (e) { return padrao; }
+}
+function esc(t) { return String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
 let savedTotalCoins = Number(localStorage.getItem(K("coins"))) || 0;
 let currentHat = localStorage.getItem(K("hat")) || 'none';
-let ownedHats = JSON.parse(localStorage.getItem(K("owned_hats"))) || ['none'];
+let ownedHats = lerLista(K("owned_hats"), ['none']);
 let totalCoins = savedTotalCoins;
+/* Total de moedas já ganhas na vida do perfil. As conquistas de moedas olhavam
+   o saldo, então gastar na loja atrasava (ou impedia) o troféu. Quem já jogava
+   começa com o saldo atual: é o mínimo que comprovadamente ganhou. */
+let lifetimeCoins = Math.max(Number(localStorage.getItem(K("coins_total"))) || 0, savedTotalCoins);
+
+function ganharMoedas(n) {
+    totalCoins += n;
+    lifetimeCoins += n;
+    if (lifetimeCoins >= 100) unlockAchievement('collector');
+    if (lifetimeCoins >= 1000) unlockAchievement('millionaire');
+}
 let bestScore = Number(localStorage.getItem(K("recorde"))) || 0;
 
 let currentSkin = localStorage.getItem(K("skin")) || 'default';
-let ownedSkins = JSON.parse(localStorage.getItem(K("owned_skins"))) || ['default'];
+let ownedSkins = lerLista(K("owned_skins"), ['default']);
 
 /* Economia: com os valores antigos (1 moeda por moeda, sem bônus) eram ~1000
    partidas para comprar a loja inteira. Agora cada item vale mais e a partida
@@ -1051,10 +1164,13 @@ const COIN_RUN = 4, COIN_SHIP = 2, STAR_SHIP = 6, GEM_SHIP = 15;
 
 // Level deixa de ser enfeite: aumenta a duração dos power-ups e, do 3 em
 // diante, começa a partida com escudo.
-function powerupDur() { return 300 + (playerLevel - 1) * 30; }
-function startShieldFrames() { return playerLevel >= 3 ? 150 + (playerLevel - 3) * 20 : 0; }
+// Os dois têm teto: sem ele, lá pelo level 14 o power-up durava mais que o
+// intervalo entre um e outro e o jogador ficava permanentemente turbinado.
+const PERK_DUR_MAX = 480, PERK_SHIELD_MAX = 300;
+function powerupDur() { return Math.min(PERK_DUR_MAX, 300 + (playerLevel - 1) * 30); }
+function startShieldFrames() { return playerLevel >= 3 ? Math.min(PERK_SHIELD_MAX, 150 + (playerLevel - 3) * 20) : 0; }
 function levelPerks() {
-    const p = [`power-ups +${((playerLevel - 1) * 30 / 60).toFixed(1)}s`];
+    const p = [`power-ups +${((powerupDur() - 300) / 60).toFixed(1)}s`];
     if (playerLevel >= 3) p.push(`escudo inicial ${(startShieldFrames() / 60).toFixed(1)}s`);
     return p.join(' · ');
 }
@@ -1063,7 +1179,7 @@ let runCoins = 0, runMaxCombo = 0;
 let combo = 0;
 let maxCombo = Number(localStorage.getItem(K("max_combo"))) || 0;
 let comboTimer = 0;
-let achievements = JSON.parse(localStorage.getItem(K("achievements"))) || [];
+let achievements = lerLista(K("achievements"), []);
 let playerXP = Number(localStorage.getItem(K("xp"))) || 0;
 let playerLevel = Math.floor(playerXP / 1000) + 1;
 
@@ -1095,11 +1211,11 @@ const skinShop = [
 
 const achievementsList = [
     { id: 'first_blood', name: 'Primeira Morte', desc: 'Destrua um inimigo com Dash', icon: '💀', xp: 50 },
-    { id: 'collector', name: 'Colecionador', desc: 'Colete 100 moedas', icon: '💰', xp: 100 },
+    { id: 'collector', name: 'Colecionador', desc: 'Ganhe 100 moedas no total', icon: '💰', xp: 100 },
     { id: 'survivor', name: 'Sobrevivente', desc: 'Alcance 1000 pontos', icon: '🏆', xp: 200 },
     { id: 'combo_king', name: 'Rei do Combo', desc: 'Faça um combo x10', icon: '⚡', xp: 150 },
     { id: 'speed_demon', name: 'Demônio da Velocidade', desc: 'Alcance fase 4', icon: '🚀', xp: 300 },
-    { id: 'millionaire', name: 'Milionário', desc: 'Acumule 1000 moedas', icon: '🤑', xp: 500 }
+    { id: 'millionaire', name: 'Milionário', desc: 'Ganhe 1000 moedas no total', icon: '🤑', xp: 500 }
 ];
 
 function unlockAchievement(id) {
@@ -1137,6 +1253,7 @@ function addCombo() {
 
 function saveGameData() {
     localStorage.setItem(K("coins"), totalCoins);
+    localStorage.setItem(K("coins_total"), lifetimeCoins);
     localStorage.setItem(K("hat"), currentHat);
     localStorage.setItem(K("owned_hats"), JSON.stringify(ownedHats));
     localStorage.setItem(K("recorde"), bestScore);
@@ -1150,7 +1267,8 @@ function saveGameData() {
 /* ---------- modal e toast próprios (o confirm/alert do navegador é feio
    e no celular vem com o endereço do site em cima) ---------- */
 const modalEl = document.getElementById('modal');
-let modalResolve = null;
+const modalInput = document.getElementById('modalInput');
+let modalResolve = null, modalComCampo = false;
 
 function ask(opts) {
     return new Promise(resolve => {
@@ -1161,13 +1279,19 @@ function ask(opts) {
         const no = document.getElementById('modalNo');
         yes.textContent = opts.yes || 'Confirmar';
         no.textContent = opts.no || 'Cancelar';
+        modalComCampo = opts.input !== undefined;
+        modalInput.style.display = modalComCampo ? 'block' : 'none';
+        modalInput.value = opts.input || '';
         modalResolve = resolve;
         modalEl.style.display = 'flex';
+        if (modalComCampo) setTimeout(() => { modalInput.focus(); modalInput.select(); }, 50);
     });
 }
 function closeModal(v) {
     modalEl.style.display = 'none';
-    if (modalResolve) { modalResolve(v); modalResolve = null; }
+    modalInput.blur();
+    const r = modalComCampo ? (v ? modalInput.value : null) : v;
+    if (modalResolve) { modalResolve(r); modalResolve = null; }
 }
 document.getElementById('modalYes').onclick = () => closeModal(true);
 document.getElementById('modalNo').onclick = () => closeModal(false);
@@ -1295,13 +1419,14 @@ function renderPerfis() {
     if (!box) return;
     box.innerHTML = '';
     PROFILE_SLOTS.forEach((slot, i) => {
-        const nome = profileName(slot) || `Jogador ${i + 1}`;
+        const salvo = profileName(slot);
+        const nome = salvo || `Jogador ${i + 1}`;
         const div = document.createElement('button');
         div.className = 'perfil' + (slot === profile ? ' on' : '');
-        div.innerHTML = `<div class="pn">${nome}</div><div class="pb">🏆 <b>${profileBest(slot).toLocaleString('pt-BR')}</b></div>`;
+        div.innerHTML = `<div class="pn">${esc(nome)}${slot === profile ? ' ✎' : ''}</div><div class="pb">🏆 <b>${profileBest(slot).toLocaleString('pt-BR')}</b></div>`;
         div.onclick = async () => {
             if (slot === profile) {
-                const novo = await pedirNome(nome);
+                const novo = await pedirNome(salvo);
                 if (novo) { setProfileName(slot, novo); renderPerfis(); }
                 return;
             }
@@ -1313,10 +1438,8 @@ function renderPerfis() {
 }
 
 function pedirNome(atual) {
-    return new Promise(resolve => {
-        const nome = prompt('Nome deste jogador:', atual);
-        resolve(nome && nome.trim() ? nome.trim().slice(0, 12) : null);
-    });
+    return ask({ icon: '✏️', title: 'Nome do jogador', text: 'Até 12 letras.', input: atual, yes: 'Salvar' })
+        .then(nome => nome && nome.trim() ? nome.trim().slice(0, 12) : null);
 }
 
 function openShop() {
@@ -1337,11 +1460,7 @@ function openShop() {
 const shopScreen = document.getElementById('shopScreen');
 
 document.getElementById('shopBtn').onclick = () => {
-    if (gameStarted && !gameOver) {
-        gamePaused = true;
-        document.getElementById('pauseBtn').textContent = "▶";
-        bgMusic.pause();
-    }
+    setPaused(true);
     openShop();
 };
 document.getElementById('openShopFromStart').onclick = openShop;
@@ -2270,15 +2389,13 @@ function updateCoins() {
         }
 
         if (box.x < c.x + c.w && box.x + box.w > c.x && box.y < c.y + c.h && box.y + box.h > c.y) {
-            totalCoins += COIN_RUN; runCoins += COIN_RUN; score += 5; coinSound();
+            ganharMoedas(COIN_RUN); runCoins += COIN_RUN; score += 5; coinSound();
             addCombo();
             createParticles(c.x + c.w / 2, c.y + c.h / 2, '#FFD700', { count: 7, speed: 2.6, life: 22, size: 2.5 });
             createFloatingText(c.x, c.y, "+" + COIN_RUN + " 🪙", "#FFD700");
             c.collected = true;
             saveGameData();
 
-            if (totalCoins >= 100) unlockAchievement('collector');
-            if (totalCoins >= 1000) unlockAchievement('millionaire');
         }
     });
 
@@ -2704,10 +2821,12 @@ function createObstacle() {
     if (currentPhase === 1) types = [{ w: 26, h: 36, t: 'stump' }, { w: 34, h: 46, t: 'haybale' }, { w: 34, h: 24, t: 'bird' }];
     else if (currentPhase === 2) types = [{ w: 26, h: 46, t: 'cactus' }, { w: 40, h: 26, t: 'vulture' }, { w: 30, h: 30, t: 'boulder' }];
     else if (currentPhase === 3) types = [{ w: 30, h: 32, t: 'ghost' }, { w: 32, h: 28, t: 'log' }, { w: 26, h: 40, t: 'gravestone' }];
-    else types = [{ w: 34, h: 34, t: 'meteor' }, { w: 42, h: 22, t: 'ufo' }, { w: 28, h: 38, t: 'crystalspike' }];
+    else if (currentPhase === 4) types = [{ w: 34, h: 34, t: 'meteor' }, { w: 42, h: 22, t: 'ufo' }, { w: 28, h: 38, t: 'crystalspike' }];
+    // o ciberespaço tinha cenário próprio mas reaproveitava os inimigos da fase 4
+    else types = [{ w: 40, h: 22, t: 'drone' }, { w: 22, h: 48, t: 'firewall' }, { w: 30, h: 30, t: 'virus' }];
 
     const type = types[Math.floor(Math.random() * types.length)];
-    const flying = ['bird', 'vulture', 'ghost', 'ufo', 'meteor'].includes(type.t);
+    const flying = ['bird', 'vulture', 'ghost', 'ufo', 'meteor', 'drone'].includes(type.t);
     // Um terço dos voadores vem na altura da cabeça: só passa agachando.
     // (Antes todos passavam alto e eram inofensivos para quem ficava no chão.)
     const rasante = flying && Math.random() < 0.34;
@@ -2716,10 +2835,44 @@ function createObstacle() {
     else if (flying) obsY = groundY - 66 - Math.random() * 74;
     else obsY = groundY - type.h;
 
+    const frame = Math.random() * 6;
+    const grupo = rasante ? ++grupoSeq : 0;
     obstacles.push({
         x: VW + 20, y: obsY, baseY: obsY, w: type.w, h: type.h,
-        type: type.t, flying: flying, rasante: rasante, frame: Math.random() * 6,
-        seed: Math.random() * 100, scored: false, dead: false
+        type: type.t, flying: flying, rasante: rasante, frame: frame,
+        seed: Math.random() * 100, scored: false, dead: false, grupo: grupo
+    });
+
+    /* O rasante sozinho dava para pular por cima (o pulo simples sobe ~150px
+       e ele tem ~75), então agachar era opcional. Agora ele vem em coluna, até
+       acima do alcance do pulo duplo: a única passagem é por baixo. O vão entre
+       um e outro é menor que o Dino, e todos oscilam juntos (mesmo frame). */
+    if (rasante) {
+        const passo = type.h + COLUNA_VAO;
+        const teto = Math.max(10, groundY - COLUNA_ALTURA);
+        for (let y = obsY - passo; y + type.h > teto; y -= passo) {
+            obstacles.push({
+                x: VW + 20, y: y, baseY: y, w: type.w, h: type.h,
+                type: type.t, flying: true, rasante: true, frame: frame,
+                seed: Math.random() * 100, scored: true, dead: false, grupo: grupo, extra: true
+            });
+        }
+    }
+}
+
+const COLUNA_VAO = 24;        // vão vertical entre os voadores (o Dino tem 48 de caixa)
+const COLUNA_ALTURA = 300;    // o pulo duplo segurado leva os pés a ~265px
+let grupoSeq = 0;
+
+// a coluna conta como um inimigo só: destruir ou bater em um derruba todos
+function matarGrupo(o) {
+    o.dead = true;
+    if (!o.grupo) return;
+    obstacles.forEach(q => {
+        if (q.grupo === o.grupo && !q.dead) {
+            q.dead = true;
+            createParticles(q.x + q.w / 2, q.y + q.h / 2, '#ffb300', { count: 6, speed: 4, life: 26 });
+        }
     });
 }
 
@@ -2736,7 +2889,7 @@ function updateObstacles() {
         if (o.type === 'meteor') {
             o.y = o.baseY + Math.sin(o.frame * 0.4) * 4;
             // rastro de fogo
-            if (animFrame % 2 === 0) {
+            if (animFrame % 2 === 0 && !o.extra) {
                 createParticles(o.x + o.w * 0.8, o.y + o.h / 2, Math.random() < 0.5 ? '#ff8c00' : '#ffd24a',
                     { count: 1, speed: 1.2, life: 18, size: rand(2, 4), grav: -0.02, round: true, lift: 0 });
             }
@@ -2751,7 +2904,17 @@ function updateObstacles() {
 
     obstacles = obstacles.filter(o => o.x + o.w > -40 && !o.dead);
 
-    baseGameSpeed = 5 + Math.floor(score / 100) * 0.45;
+    baseGameSpeed = Math.min(5 + Math.floor(score / 100) * 0.45, speedCap());
+}
+
+/* O obstáculo nasce na borda direita, então em tela estreita sobra menos
+   tempo para reagir: com o celular em pé eram 0,27s no fim da corrida, contra
+   1,24s no desktop. O teto garante pelo menos REACT_MIN frames entre o
+   obstáculo aparecer e chegar no Dino; daí em diante a dificuldade continua
+   subindo só pelo intervalo de spawn. */
+const REACT_MIN = 33;
+function speedCap() {
+    return Math.max(7, (VW + 20 - (dino.x + dino.w - 10)) / REACT_MIN);
 }
 
 function drawObstacles() {
@@ -2760,7 +2923,7 @@ function drawObstacles() {
 
         // sombra no chão (mais fraca quanto mais alto o inimigo estiver)
         const above = clamp(groundY - (o.y + o.h), 0, 180);
-        ctx.globalAlpha = 0.06 + 0.18 * (1 - above / 180);
+        ctx.globalAlpha = o.extra ? 0 : 0.06 + 0.18 * (1 - above / 180);
         ctx.fillStyle = '#000';
         ctx.beginPath();
         ctx.ellipse(cx, groundY + 5, o.w * 0.5 * (1 - above / 320), 4, 0, 0, Math.PI * 2);
@@ -2938,6 +3101,71 @@ function drawObstacles() {
             ctx.strokeStyle = `rgba(255,140,0,${0.5 + 0.3 * Math.sin(o.frame * 3)})`;
             ctx.lineWidth = 2;
             ctx.beginPath(); ctx.arc(0, 0, o.w / 2 + 2, 0, Math.PI * 2); ctx.stroke();
+        } else if (o.type === 'drone') {
+            // braços e rotores (borrão girando)
+            ctx.strokeStyle = '#2b3550'; ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.moveTo(-17, -4); ctx.lineTo(17, -4); ctx.stroke();
+            const giro = Math.abs(Math.sin(o.frame * 4));
+            ctx.fillStyle = 'rgba(120,230,255,0.45)';
+            ctx.beginPath(); ctx.ellipse(-15, -8, 4 + 7 * giro, 1.8, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.ellipse(15, -8, 4 + 7 * (1 - giro), 1.8, 0, 0, Math.PI * 2); ctx.fill();
+            // corpo
+            const g = ctx.createLinearGradient(0, -7, 0, 10);
+            g.addColorStop(0, '#3a4a6e'); g.addColorStop(1, '#141a2b');
+            ctx.fillStyle = g;
+            ctx.beginPath();
+            ctx.roundRect ? ctx.roundRect(-11, -6, 22, 15, 5) : ctx.rect(-11, -6, 22, 15);
+            ctx.fill();
+            ctx.strokeStyle = '#22d3ee'; ctx.lineWidth = 1.2; ctx.stroke();
+            // olho-câmera pulsando
+            const p = 0.55 + 0.45 * Math.sin(o.frame * 2.2);
+            ctx.fillStyle = `rgba(255,60,110,${p})`;
+            ctx.shadowColor = '#ff3c6e'; ctx.shadowBlur = 8 * p;
+            ctx.beginPath(); ctx.arc(-3, 2, 3.4, 0, Math.PI * 2); ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = '#22d3ee';
+            ctx.fillRect(4, 0, 4, 1.5); ctx.fillRect(4, 3.5, 4, 1.5);
+        } else if (o.type === 'firewall') {
+            // barreira de energia: blocos que tremeluzem entre dois postes
+            const hw = o.w / 2, hh = o.h / 2;
+            ctx.shadowColor = '#ff3cc8'; ctx.shadowBlur = 12;
+            for (let i = 0; i < 6; i++) {
+                const a = 0.45 + 0.4 * Math.sin(o.frame * 2.4 + i * 1.7 + o.seed);
+                ctx.fillStyle = i % 2 ? `rgba(255,60,200,${a})` : `rgba(255,150,60,${a})`;
+                ctx.fillRect(-hw + 4, -hh + 2 + i * 7.6, o.w - 8, 5.6);
+            }
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = '#1b2036';
+            ctx.fillRect(-hw, -hh, 4, o.h); ctx.fillRect(hw - 4, -hh, 4, o.h);
+            ctx.fillStyle = '#ff7ad9';
+            ctx.fillRect(-hw, -hh, 4, 3); ctx.fillRect(hw - 4, -hh, 4, 3);
+        } else if (o.type === 'virus') {
+            // bola de espinhos que gira, com "glitch" de vez em quando
+            const gl = Math.sin(o.frame * 1.3 + o.seed) > 0.92 ? 3 : 0;
+            ctx.save();
+            ctx.translate(gl, 0);
+            ctx.rotate(o.frame * 0.25);
+            ctx.strokeStyle = '#7dff5c'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+            for (let i = 0; i < 8; i++) {
+                const a = i * Math.PI / 4;
+                ctx.beginPath();
+                ctx.moveTo(Math.cos(a) * 8, Math.sin(a) * 8);
+                ctx.lineTo(Math.cos(a) * 14.5, Math.sin(a) * 14.5);
+                ctx.stroke();
+            }
+            ctx.restore();
+            const g = ctx.createRadialGradient(-3 + gl, -4, 2, gl, 0, 11);
+            g.addColorStop(0, '#b6ff8a'); g.addColorStop(1, '#1f7a2e');
+            ctx.fillStyle = g;
+            ctx.shadowColor = '#7dff5c'; ctx.shadowBlur = 10;
+            ctx.beginPath(); ctx.arc(gl, 0, 10, 0, Math.PI * 2); ctx.fill();
+            ctx.shadowBlur = 0;
+            // olhos bravos
+            ctx.fillStyle = '#0b1a0d';
+            ctx.beginPath(); ctx.arc(-4 + gl, -1, 2.1, 0, Math.PI * 2); ctx.arc(4 + gl, -1, 2.1, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = '#0b1a0d'; ctx.lineWidth = 1.6;
+            ctx.beginPath(); ctx.moveTo(-7 + gl, -5); ctx.lineTo(-2 + gl, -3); ctx.moveTo(7 + gl, -5); ctx.lineTo(2 + gl, -3); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(-3 + gl, 5); ctx.lineTo(3 + gl, 5); ctx.stroke();
         }
 
         ctx.restore();
@@ -2985,7 +3213,7 @@ function checkCollision() {
     for (let o of obstacles) {
         if (b.x < o.x + o.w && b.x + b.w > o.x && b.y < o.y + o.h && b.y + b.h > o.y) {
             if (activePowerups.dash > 0) {
-                o.dead = true;
+                matarGrupo(o);
                 createParticles(o.x + o.w / 2, o.y + o.h / 2, '#ffb300', { count: 18, speed: 5, life: 34 });
                 createParticles(o.x + o.w / 2, o.y + o.h / 2, '#ffffff', { count: 8, speed: 7, life: 20, size: 2 });
                 killSound();
@@ -3002,7 +3230,7 @@ function checkCollision() {
             if (activePowerups.shield > 0) {
                 // o escudo aguenta uma pancada e some
                 activePowerups.shield = 0;
-                o.dead = true;
+                matarGrupo(o);
                 createParticles(o.x + o.w / 2, o.y + o.h / 2, '#7fd8ff', { count: 20, speed: 5, life: 30 });
                 createFloatingText(dino.x, dino.y - 24, "ESCUDO QUEBROU!", "#7fd8ff");
                 hitSound();
@@ -3062,13 +3290,13 @@ function finishScoreboard() {
     const divisor = (sessionMode === 'ship' || gameMode === 'ship') ? 6 : 3;
     const bonus = Math.floor(finalScoreNum / divisor) + Math.min(runMaxCombo, 25) * 6;
     const xpGain = Math.floor(finalScoreNum / 10);
-    totalCoins += bonus;
+    ganharMoedas(bonus);
     playerXP += xpGain;
     const antesLevel = playerLevel;
     playerLevel = Math.floor(playerXP / 1000) + 1;
     localStorage.setItem(K("xp"), playerXP);
 
-    document.getElementById("goPayCoins").textContent = '+' + bonus.toLocaleString('pt-BR');
+    document.getElementById("goPayCoins").textContent = '+' + bonus.toLocaleString('pt-BR') + ' 🪙';
     document.getElementById("goPayXp").textContent = '+' + xpGain + ' XP';
     const up = document.getElementById("goLevelUp");
     up.classList.toggle('on', playerLevel > antesLevel);
@@ -3084,8 +3312,13 @@ function finishScoreboard() {
         } else {
             bestScore = finalScoreNum;
         }
-        saveGameData();
     }
+    // salva sempre: antes só salvava em recorde e o bônus da partida se
+    // perdia ao fechar o jogo ou trocar de perfil
+    saveGameData();
+
+    document.getElementById("goGap").innerHTML = (!isRecord && prev > finalScoreNum)
+        ? `Faltaram <b>${(prev - finalScoreNum + 1).toLocaleString('pt-BR')}</b> pontos para bater o recorde` : '';
 
     document.getElementById("goModeTag").textContent =
         sessionMode === 'ship' ? '🚀 Modo Nave'
@@ -3143,7 +3376,7 @@ function checarDesafio() {
     if (desafioAtual.ler() >= desafioAtual.n) {
         localStorage.setItem(K('desafio_' + desafioAtual.chave), '1');
         desafioOk = true;
-        totalCoins += desafioAtual.premio;
+        ganharMoedas(desafioAtual.premio);
         playerXP += 150;
         playerLevel = Math.floor(playerXP / 1000) + 1;
         localStorage.setItem(K('xp'), playerXP);
@@ -3959,22 +4192,20 @@ function updatePrizes() {
             p.got = true;
             addCombo();
             if (p.kind === 'coin') {
-                totalCoins += COIN_SHIP; runCoins += COIN_SHIP; score += 8; prizeSound(false);
+                ganharMoedas(COIN_SHIP); runCoins += COIN_SHIP; score += 8; prizeSound(false);
                 createParticles(p.x, p.y, '#FFD700', { count: 6, speed: 2.4, life: 20, size: 2.4 });
                 createFloatingText(p.x - 10, p.y - 12, '+' + COIN_SHIP + ' 🪙', '#FFD700');
             } else if (p.kind === 'star') {
-                totalCoins += STAR_SHIP; runCoins += STAR_SHIP; score += 30; prizeSound(true);
+                ganharMoedas(STAR_SHIP); runCoins += STAR_SHIP; score += 30; prizeSound(true);
                 createParticles(p.x, p.y, '#ffe680', { count: 14, speed: 3.4, life: 28 });
                 createFloatingText(p.x - 18, p.y - 14, '+30 ⭐', '#ffe680');
             } else {
-                totalCoins += GEM_SHIP; runCoins += GEM_SHIP; score += 80; prizeSound(true);
+                ganharMoedas(GEM_SHIP); runCoins += GEM_SHIP; score += 80; prizeSound(true);
                 createParticles(p.x, p.y, '#7fd8ff', { count: 20, speed: 4.2, life: 34 });
                 createFloatingText(p.x - 24, p.y - 16, '+80 💎', '#7fd8ff');
                 flash = Math.max(flash, 0.2);
             }
             saveGameData();
-            if (totalCoins >= 100) unlockAchievement('collector');
-            if (totalCoins >= 1000) unlockAchievement('millionaire');
         }
     });
     prizes = prizes.filter(p => !p.got && p.x > -40);
@@ -4262,6 +4493,8 @@ function startShipMode() {
     document.getElementById('soundBtn').style.display = 'flex';
     document.getElementById('pauseBtn').style.display = 'flex';
     document.getElementById('pauseBtn').textContent = '⏸';
+    document.getElementById('pauseScreen').style.display = 'none';
+    runCoins = 0; runMaxCombo = 0; runKills = 0;
     resetSpace();
     startCutscene('launch');
     unlockAudio();
@@ -4284,11 +4517,11 @@ function tick() {
 
     // --- modo nave ---
     if (gameMode === 'ship') {
-        if (cs) { updateCutscene(); return; }
+        if (cs) { if (!gamePaused) updateCutscene(); return; }
         if (!gamePaused) spaceTick();
         if (gameOver && deathTimer > 0) {
             deathTimer--;
-            if (deathTimer === 0) document.getElementById("gameOverScreen").style.display = "flex";
+            if (deathTimer === 0) showGameOver();
         }
         updateParticles();
         updateFloatingTexts();
@@ -4326,7 +4559,7 @@ function tick() {
 
     if (gameOver && deathTimer > 0) {
         deathTimer--;
-        if (deathTimer === 0) document.getElementById("gameOverScreen").style.display = "flex";
+        if (deathTimer === 0) showGameOver();
     }
 
     updateParticles();
@@ -4380,7 +4613,6 @@ function render() {
             ctx.fillStyle = `rgba(255,255,255,${flash * 0.6})`;
             ctx.fillRect(0, 0, VW, VH);
         }
-        if (gamePaused && !gameOver && !cs) drawPausedOverlay();
         drawScore();
         drawPowerupBar();
         return;
@@ -4419,20 +4651,8 @@ function render() {
         ctx.fillRect(0, 0, VW, VH);
     }
 
-    if (gamePaused && gameStarted && !gameOver) drawPausedOverlay();
-
     drawScore();
     drawPowerupBar();
-}
-
-function drawPausedOverlay() {
-    ctx.fillStyle = 'rgba(4,6,12,0.55)';
-    ctx.fillRect(0, 0, VW, VH);
-    ctx.fillStyle = '#fff';
-    ctx.font = "900 30px system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
-    ctx.textAlign = 'center';
-    ctx.fillText('PAUSADO', VW / 2, VH / 2);
-    ctx.textAlign = 'left';
 }
 
 let lastTime = 0, accumulator = 0;
@@ -4471,14 +4691,40 @@ function pressJump() {
 }
 function releaseJump() { jumpHeld = false; ship.thrust = false; }
 
+function digitando(e) { return e.target && e.target.tagName === 'INPUT'; }
+
 document.addEventListener("keydown", e => {
+    if (digitando(e)) return;
     if (e.code === "Space" || e.code === "ArrowUp") { e.preventDefault(); if (!e.repeat) pressJump(); }
+});
+
+// atalhos de menu: antes, no desktop, tudo fora o pulo exigia o mouse
+document.addEventListener("keydown", e => {
+    if (e.repeat) return;
+    const aberto = id => document.getElementById(id).style.display === 'flex';
+    if (aberto('modal')) {
+        if (e.code === 'Escape') closeModal(false);
+        else if (e.code === 'Enter' || e.code === 'NumpadEnter') closeModal(true);
+        return;
+    }
+    if (digitando(e)) return;
+    const enter = e.code === 'Enter' || e.code === 'NumpadEnter';
+    if (aberto('shopScreen')) { if (e.code === 'Escape') shopScreen.style.display = 'none'; return; }
+    if (aberto('gameOverScreen')) {
+        // a folga evita reiniciar sem querer para quem estava martelando o pulo
+        if ((enter || e.code === 'Space') && performance.now() - overShownAt > 600) resetGame();
+        return;
+    }
+    if (!gameStarted) { if (enter) beginRun(); return; }
+    if (e.code === 'KeyP' || e.code === 'Escape') setPaused(!gamePaused);
+    else if (enter && gamePaused) setPaused(false);
 });
 document.addEventListener("keyup", e => {
     if (e.code === "Space" || e.code === "ArrowUp") releaseJump();
     if (e.code === "ArrowDown" || e.code === "KeyS") setDuck(false);
 });
 document.addEventListener("keydown", e => {
+    if (digitando(e)) return;
     if (e.code === "ArrowDown" || e.code === "KeyS") { e.preventDefault(); setDuck(true); }
 });
 
@@ -4620,7 +4866,6 @@ if (savedFace) {
 fileInput.addEventListener("change", e => {
     const file = e.target.files[0];
     if (!file) return;
-    gamePaused = true;
     const reader = new FileReader();
     reader.onload = ev => {
         const img = new Image();
@@ -4640,7 +4885,7 @@ fileInput.addEventListener("change", e => {
             finalImg.onload = () => {
                 faceImage = finalImg;
                 showPhotoUI(data);
-                setTimeout(() => { gamePaused = false; }, 400);
+                toast('📷 Foto aplicada no Dino');
             };
             finalImg.src = data;
         };
@@ -4678,9 +4923,13 @@ function beginRun() {
 document.getElementById("startBtn").onclick = beginRun;
 
 function resetGame() {
+    document.getElementById("pauseScreen").style.display = "none";
     if (sessionMode === 'run' && gameMode === 'ship') { gameMode = 'run'; endCutscene(); }
     if (gameMode === 'ship') {
         gameOver = false; gameStarted = true; gamePaused = false;
+        // resetSpace() não zera isto porque a decolagem no meio da corrida
+        // precisa carregar os números da partida junto
+        runCoins = 0; runMaxCombo = 0; runKills = 0;
         resetSpace();
         startCutscene('warp');           // no replay, só a entrada rápida
         document.getElementById("gameOverScreen").style.display = "none";
@@ -4721,6 +4970,7 @@ function resetGame() {
     dino.jumping = false;
     dino.doubleJumped = false;
     dino.dying = false;
+    dino.ducking = false; dino.duck = 0;
     dino.rot = 0;
     dino.squash = 0;
     dino.trail = [];
@@ -4739,10 +4989,11 @@ function resetGame() {
 
 document.getElementById("restartBtn").onclick = resetGame;
 
-document.getElementById("backToMenu").onclick = () => {
+function goMenu() {
     gameStarted = false; gameOver = false; gamePaused = false; endCutscene();
     gameMode = 'run'; sessionMode = 'run';
     document.getElementById("gameOverScreen").style.display = "none";
+    document.getElementById("pauseScreen").style.display = "none";
     document.getElementById("tutorialScreen").style.display = "flex";
     document.getElementById("pauseBtn").style.display = "none";
     document.getElementById("shopBtn").style.display = "none";
@@ -4752,25 +5003,48 @@ document.getElementById("backToMenu").onclick = () => {
     bgMusic.pause();
     renderPerfis();
     renderDesafio();
-};
+}
+document.getElementById("backToMenu").onclick = goMenu;
 
+let overShownAt = 0;
+function showGameOver() {
+    overShownAt = performance.now();
+    document.getElementById("gameOverScreen").style.display = "flex";
+}
+
+/* Ponto único de pausa. Antes cada lugar (botão, loja, troca de app) mexia
+   em gamePaused por conta própria e a tela só mostrava um texto no canvas,
+   sem como reiniciar ou sair. */
 const pauseBtn = document.getElementById("pauseBtn");
-pauseBtn.onclick = () => {
+const pauseScreen = document.getElementById("pauseScreen");
+function setPaused(v) {
     if (!gameStarted || gameOver) return;
-    gamePaused = !gamePaused;
-    pauseBtn.textContent = gamePaused ? "▶" : "⏸";
-    if (gamePaused) bgMusic.pause();
-    else if (soundEnabled) bgMusic.play().catch(() => {});
-};
+    gamePaused = v;
+    pauseBtn.textContent = v ? "▶" : "⏸";
+    pauseScreen.style.display = v ? "flex" : "none";
+    if (v) {
+        document.getElementById("pauseScore").textContent = Math.floor(score).toLocaleString('pt-BR');
+        dino.ducking = false; jumpHeld = false; ship.thrust = false;
+        bgMusic.pause();
+    } else if (soundEnabled) bgMusic.play().catch(() => {});
+}
+pauseBtn.onclick = () => setPaused(!gamePaused);
+document.getElementById("resumeBtn").onclick = () => setPaused(false);
+document.getElementById("pauseRestartBtn").onclick = resetGame;
+document.getElementById("pauseMenuBtn").onclick = goMenu;
 
 // pausa sozinho se o celular tocar / trocar de app
 document.addEventListener('visibilitychange', () => {
-    if (document.hidden && gameStarted && !gameOver && !gamePaused) {
-        gamePaused = true;
-        pauseBtn.textContent = "▶";
-        bgMusic.pause();
-    }
+    if (document.hidden && !gamePaused) setPaused(true);
 });
+
+const howToBtn = document.getElementById("howToBtn");
+howToBtn.onclick = () => {
+    const box = document.getElementById("howTo");
+    box.hidden = !box.hidden;
+    howToBtn.setAttribute('aria-expanded', String(!box.hidden));
+    if (!box.hidden) box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+};
 
 /* =========================================================================
    BOOT
