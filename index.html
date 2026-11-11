@@ -682,6 +682,17 @@ body.cinematic #duckBtn { opacity: 0; pointer-events: none; }
     .stat .v { font-size: 16px; }
     #shopItems { max-height: 34vh; }
     .btn-col { margin-top: 12px; gap: 9px; }
+    /* HUD em uma linha só e os três botões lado a lado: tudo cabe em ~60px,
+       liberando a altura para o jogo (a barreira do Modo Nave sobe junto) */
+    #ui { display: flex; align-items: center; gap: 8px; max-width: calc(100% - 196px); }
+    #hud { display: flex; align-items: center; gap: 10px; padding: 7px 12px; }
+    #scoreVal { font-size: 22px; }
+    .hud-top { gap: 6px; }
+    #comboChip { margin-left: 2px; }
+    .hud-meta { margin-top: 0; flex-wrap: nowrap; }
+    #hud .xp-track { display: none; }
+    #powerupBar { margin-top: 0; flex-wrap: nowrap; }
+    #shopBtn { top: var(--st); right: calc(var(--sr) + 112px); }
     /* deitado, o botão da esquerda ficava em cima do Dino */
     #duckBtn { left: auto; right: calc(16px + env(safe-area-inset-right, 0px)); }
 }
@@ -3413,6 +3424,7 @@ const SHIP_GRAV = 0.34;
 const SHIP_THRUST = -0.80;
 const SHIP_MAX_VY = 8.5;
 const SHIP_TOP = 128;          // abaixo do HUD, pra nave nunca sumir atrás dele
+const SHIP_TOP_BAIXO = 66;     // tela baixa (celular deitado): o HUD vira uma linha só
 
 let gameMode = 'run';          // 'run' | 'ship'
 let sessionMode = 'run';       // com o que a partida COMEÇOU (define o recorde)
@@ -3431,7 +3443,10 @@ let lastZone = 1, obsCount = 0, warnBeep = 0;
 // As bordas da tela são barreiras de energia e MATAM.
 // Antes elas só empurravam a nave de volta, então dava para encostar no teto
 // (ou no chão) e atravessar o jogo inteiro sem tocar em nada.
-function hazTop() { return SHIP_TOP; }
+/* Com o celular deitado a tela tem ~390px de altura: os 128px fixos punham a
+   barreira de cima a um terço da tela. Ali o HUD fica compacto (ver o CSS em
+   max-height: 480px) e a barreira sobe junto. */
+function hazTop() { return VH < 480 ? SHIP_TOP_BAIXO : SHIP_TOP; }
 function hazBot() { return VH - 22; }
 let cs = null;                 // estado da cutscene
 
@@ -3949,7 +3964,7 @@ function updateSpaceObstacles() {
     if (spaceObsTimer > gapPx) { createSpaceObstacle(); spaceObsTimer = 0; }
 
     const b = shipBox();
-    const top = SHIP_TOP, bot = VH - 24;
+    const top = hazTop(), bot = VH - 24;
 
     spaceObs.forEach(o => {
         o.x -= spaceSpeed + (o.boost || 0);
