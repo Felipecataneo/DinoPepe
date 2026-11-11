@@ -136,6 +136,14 @@ O recorde do Modo Nave é guardado separado do recorde da corrida.
 * Um valor corrompido no armazenamento não impede mais o jogo de abrir; a cutscene de
   lançamento respeita a pausa.
 
+**Jogabilidade**
+* ⬇️ **Rasante agora vem em coluna.** Um voador rasante sozinho dava para pular por cima,
+  então agachar era opcional. Agora ele vem empilhado até acima do alcance do pulo duplo:
+  só passa agachando. A coluna conta como um inimigo só (pontos, combo e Dash).
+* 🛰️ **O Ciberespaço tem inimigos próprios:** drone, firewall e vírus (antes repetia os
+  do espaço).
+* 🏆 **Troféus de moedas contam o total ganho**, não o saldo — gastar na loja não atrasa mais.
+
 **Interface**
 * ⏸️ **Tela de pausa de verdade:** Continuar, Reiniciar e Menu (antes era só um texto).
 * 🏠 **Menu enxuto:** jogar fica no topo; as instruções foram para "Como jogar".

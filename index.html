@@ -1141,6 +1141,17 @@ let savedTotalCoins = Number(localStorage.getItem(K("coins"))) || 0;
 let currentHat = localStorage.getItem(K("hat")) || 'none';
 let ownedHats = lerLista(K("owned_hats"), ['none']);
 let totalCoins = savedTotalCoins;
+/* Total de moedas já ganhas na vida do perfil. As conquistas de moedas olhavam
+   o saldo, então gastar na loja atrasava (ou impedia) o troféu. Quem já jogava
+   começa com o saldo atual: é o mínimo que comprovadamente ganhou. */
+let lifetimeCoins = Math.max(Number(localStorage.getItem(K("coins_total"))) || 0, savedTotalCoins);
+
+function ganharMoedas(n) {
+    totalCoins += n;
+    lifetimeCoins += n;
+    if (lifetimeCoins >= 100) unlockAchievement('collector');
+    if (lifetimeCoins >= 1000) unlockAchievement('millionaire');
+}
 let bestScore = Number(localStorage.getItem(K("recorde"))) || 0;
 
 let currentSkin = localStorage.getItem(K("skin")) || 'default';
@@ -1200,11 +1211,11 @@ const skinShop = [
 
 const achievementsList = [
     { id: 'first_blood', name: 'Primeira Morte', desc: 'Destrua um inimigo com Dash', icon: '💀', xp: 50 },
-    { id: 'collector', name: 'Colecionador', desc: 'Colete 100 moedas', icon: '💰', xp: 100 },
+    { id: 'collector', name: 'Colecionador', desc: 'Ganhe 100 moedas no total', icon: '💰', xp: 100 },
     { id: 'survivor', name: 'Sobrevivente', desc: 'Alcance 1000 pontos', icon: '🏆', xp: 200 },
     { id: 'combo_king', name: 'Rei do Combo', desc: 'Faça um combo x10', icon: '⚡', xp: 150 },
     { id: 'speed_demon', name: 'Demônio da Velocidade', desc: 'Alcance fase 4', icon: '🚀', xp: 300 },
-    { id: 'millionaire', name: 'Milionário', desc: 'Acumule 1000 moedas', icon: '🤑', xp: 500 }
+    { id: 'millionaire', name: 'Milionário', desc: 'Ganhe 1000 moedas no total', icon: '🤑', xp: 500 }
 ];
 
 function unlockAchievement(id) {
@@ -1242,6 +1253,7 @@ function addCombo() {
 
 function saveGameData() {
     localStorage.setItem(K("coins"), totalCoins);
+    localStorage.setItem(K("coins_total"), lifetimeCoins);
     localStorage.setItem(K("hat"), currentHat);
     localStorage.setItem(K("owned_hats"), JSON.stringify(ownedHats));
     localStorage.setItem(K("recorde"), bestScore);
@@ -2377,15 +2389,13 @@ function updateCoins() {
         }
 
         if (box.x < c.x + c.w && box.x + box.w > c.x && box.y < c.y + c.h && box.y + box.h > c.y) {
-            totalCoins += COIN_RUN; runCoins += COIN_RUN; score += 5; coinSound();
+            ganharMoedas(COIN_RUN); runCoins += COIN_RUN; score += 5; coinSound();
             addCombo();
             createParticles(c.x + c.w / 2, c.y + c.h / 2, '#FFD700', { count: 7, speed: 2.6, life: 22, size: 2.5 });
             createFloatingText(c.x, c.y, "+" + COIN_RUN + " 🪙", "#FFD700");
             c.collected = true;
             saveGameData();
 
-            if (totalCoins >= 100) unlockAchievement('collector');
-            if (totalCoins >= 1000) unlockAchievement('millionaire');
         }
     });
 
@@ -2811,10 +2821,12 @@ function createObstacle() {
     if (currentPhase === 1) types = [{ w: 26, h: 36, t: 'stump' }, { w: 34, h: 46, t: 'haybale' }, { w: 34, h: 24, t: 'bird' }];
     else if (currentPhase === 2) types = [{ w: 26, h: 46, t: 'cactus' }, { w: 40, h: 26, t: 'vulture' }, { w: 30, h: 30, t: 'boulder' }];
     else if (currentPhase === 3) types = [{ w: 30, h: 32, t: 'ghost' }, { w: 32, h: 28, t: 'log' }, { w: 26, h: 40, t: 'gravestone' }];
-    else types = [{ w: 34, h: 34, t: 'meteor' }, { w: 42, h: 22, t: 'ufo' }, { w: 28, h: 38, t: 'crystalspike' }];
+    else if (currentPhase === 4) types = [{ w: 34, h: 34, t: 'meteor' }, { w: 42, h: 22, t: 'ufo' }, { w: 28, h: 38, t: 'crystalspike' }];
+    // o ciberespaço tinha cenário próprio mas reaproveitava os inimigos da fase 4
+    else types = [{ w: 40, h: 22, t: 'drone' }, { w: 22, h: 48, t: 'firewall' }, { w: 30, h: 30, t: 'virus' }];
 
     const type = types[Math.floor(Math.random() * types.length)];
-    const flying = ['bird', 'vulture', 'ghost', 'ufo', 'meteor'].includes(type.t);
+    const flying = ['bird', 'vulture', 'ghost', 'ufo', 'meteor', 'drone'].includes(type.t);
     // Um terço dos voadores vem na altura da cabeça: só passa agachando.
     // (Antes todos passavam alto e eram inofensivos para quem ficava no chão.)
     const rasante = flying && Math.random() < 0.34;
@@ -2823,10 +2835,44 @@ function createObstacle() {
     else if (flying) obsY = groundY - 66 - Math.random() * 74;
     else obsY = groundY - type.h;
 
+    const frame = Math.random() * 6;
+    const grupo = rasante ? ++grupoSeq : 0;
     obstacles.push({
         x: VW + 20, y: obsY, baseY: obsY, w: type.w, h: type.h,
-        type: type.t, flying: flying, rasante: rasante, frame: Math.random() * 6,
-        seed: Math.random() * 100, scored: false, dead: false
+        type: type.t, flying: flying, rasante: rasante, frame: frame,
+        seed: Math.random() * 100, scored: false, dead: false, grupo: grupo
+    });
+
+    /* O rasante sozinho dava para pular por cima (o pulo simples sobe ~150px
+       e ele tem ~75), então agachar era opcional. Agora ele vem em coluna, até
+       acima do alcance do pulo duplo: a única passagem é por baixo. O vão entre
+       um e outro é menor que o Dino, e todos oscilam juntos (mesmo frame). */
+    if (rasante) {
+        const passo = type.h + COLUNA_VAO;
+        const teto = Math.max(10, groundY - COLUNA_ALTURA);
+        for (let y = obsY - passo; y + type.h > teto; y -= passo) {
+            obstacles.push({
+                x: VW + 20, y: y, baseY: y, w: type.w, h: type.h,
+                type: type.t, flying: true, rasante: true, frame: frame,
+                seed: Math.random() * 100, scored: true, dead: false, grupo: grupo, extra: true
+            });
+        }
+    }
+}
+
+const COLUNA_VAO = 24;        // vão vertical entre os voadores (o Dino tem 48 de caixa)
+const COLUNA_ALTURA = 300;    // o pulo duplo segurado leva os pés a ~265px
+let grupoSeq = 0;
+
+// a coluna conta como um inimigo só: destruir ou bater em um derruba todos
+function matarGrupo(o) {
+    o.dead = true;
+    if (!o.grupo) return;
+    obstacles.forEach(q => {
+        if (q.grupo === o.grupo && !q.dead) {
+            q.dead = true;
+            createParticles(q.x + q.w / 2, q.y + q.h / 2, '#ffb300', { count: 6, speed: 4, life: 26 });
+        }
     });
 }
 
@@ -2843,7 +2889,7 @@ function updateObstacles() {
         if (o.type === 'meteor') {
             o.y = o.baseY + Math.sin(o.frame * 0.4) * 4;
             // rastro de fogo
-            if (animFrame % 2 === 0) {
+            if (animFrame % 2 === 0 && !o.extra) {
                 createParticles(o.x + o.w * 0.8, o.y + o.h / 2, Math.random() < 0.5 ? '#ff8c00' : '#ffd24a',
                     { count: 1, speed: 1.2, life: 18, size: rand(2, 4), grav: -0.02, round: true, lift: 0 });
             }
@@ -2877,7 +2923,7 @@ function drawObstacles() {
 
         // sombra no chão (mais fraca quanto mais alto o inimigo estiver)
         const above = clamp(groundY - (o.y + o.h), 0, 180);
-        ctx.globalAlpha = 0.06 + 0.18 * (1 - above / 180);
+        ctx.globalAlpha = o.extra ? 0 : 0.06 + 0.18 * (1 - above / 180);
         ctx.fillStyle = '#000';
         ctx.beginPath();
         ctx.ellipse(cx, groundY + 5, o.w * 0.5 * (1 - above / 320), 4, 0, 0, Math.PI * 2);
@@ -3055,6 +3101,71 @@ function drawObstacles() {
             ctx.strokeStyle = `rgba(255,140,0,${0.5 + 0.3 * Math.sin(o.frame * 3)})`;
             ctx.lineWidth = 2;
             ctx.beginPath(); ctx.arc(0, 0, o.w / 2 + 2, 0, Math.PI * 2); ctx.stroke();
+        } else if (o.type === 'drone') {
+            // braços e rotores (borrão girando)
+            ctx.strokeStyle = '#2b3550'; ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.moveTo(-17, -4); ctx.lineTo(17, -4); ctx.stroke();
+            const giro = Math.abs(Math.sin(o.frame * 4));
+            ctx.fillStyle = 'rgba(120,230,255,0.45)';
+            ctx.beginPath(); ctx.ellipse(-15, -8, 4 + 7 * giro, 1.8, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.ellipse(15, -8, 4 + 7 * (1 - giro), 1.8, 0, 0, Math.PI * 2); ctx.fill();
+            // corpo
+            const g = ctx.createLinearGradient(0, -7, 0, 10);
+            g.addColorStop(0, '#3a4a6e'); g.addColorStop(1, '#141a2b');
+            ctx.fillStyle = g;
+            ctx.beginPath();
+            ctx.roundRect ? ctx.roundRect(-11, -6, 22, 15, 5) : ctx.rect(-11, -6, 22, 15);
+            ctx.fill();
+            ctx.strokeStyle = '#22d3ee'; ctx.lineWidth = 1.2; ctx.stroke();
+            // olho-câmera pulsando
+            const p = 0.55 + 0.45 * Math.sin(o.frame * 2.2);
+            ctx.fillStyle = `rgba(255,60,110,${p})`;
+            ctx.shadowColor = '#ff3c6e'; ctx.shadowBlur = 8 * p;
+            ctx.beginPath(); ctx.arc(-3, 2, 3.4, 0, Math.PI * 2); ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = '#22d3ee';
+            ctx.fillRect(4, 0, 4, 1.5); ctx.fillRect(4, 3.5, 4, 1.5);
+        } else if (o.type === 'firewall') {
+            // barreira de energia: blocos que tremeluzem entre dois postes
+            const hw = o.w / 2, hh = o.h / 2;
+            ctx.shadowColor = '#ff3cc8'; ctx.shadowBlur = 12;
+            for (let i = 0; i < 6; i++) {
+                const a = 0.45 + 0.4 * Math.sin(o.frame * 2.4 + i * 1.7 + o.seed);
+                ctx.fillStyle = i % 2 ? `rgba(255,60,200,${a})` : `rgba(255,150,60,${a})`;
+                ctx.fillRect(-hw + 4, -hh + 2 + i * 7.6, o.w - 8, 5.6);
+            }
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = '#1b2036';
+            ctx.fillRect(-hw, -hh, 4, o.h); ctx.fillRect(hw - 4, -hh, 4, o.h);
+            ctx.fillStyle = '#ff7ad9';
+            ctx.fillRect(-hw, -hh, 4, 3); ctx.fillRect(hw - 4, -hh, 4, 3);
+        } else if (o.type === 'virus') {
+            // bola de espinhos que gira, com "glitch" de vez em quando
+            const gl = Math.sin(o.frame * 1.3 + o.seed) > 0.92 ? 3 : 0;
+            ctx.save();
+            ctx.translate(gl, 0);
+            ctx.rotate(o.frame * 0.25);
+            ctx.strokeStyle = '#7dff5c'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+            for (let i = 0; i < 8; i++) {
+                const a = i * Math.PI / 4;
+                ctx.beginPath();
+                ctx.moveTo(Math.cos(a) * 8, Math.sin(a) * 8);
+                ctx.lineTo(Math.cos(a) * 14.5, Math.sin(a) * 14.5);
+                ctx.stroke();
+            }
+            ctx.restore();
+            const g = ctx.createRadialGradient(-3 + gl, -4, 2, gl, 0, 11);
+            g.addColorStop(0, '#b6ff8a'); g.addColorStop(1, '#1f7a2e');
+            ctx.fillStyle = g;
+            ctx.shadowColor = '#7dff5c'; ctx.shadowBlur = 10;
+            ctx.beginPath(); ctx.arc(gl, 0, 10, 0, Math.PI * 2); ctx.fill();
+            ctx.shadowBlur = 0;
+            // olhos bravos
+            ctx.fillStyle = '#0b1a0d';
+            ctx.beginPath(); ctx.arc(-4 + gl, -1, 2.1, 0, Math.PI * 2); ctx.arc(4 + gl, -1, 2.1, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = '#0b1a0d'; ctx.lineWidth = 1.6;
+            ctx.beginPath(); ctx.moveTo(-7 + gl, -5); ctx.lineTo(-2 + gl, -3); ctx.moveTo(7 + gl, -5); ctx.lineTo(2 + gl, -3); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(-3 + gl, 5); ctx.lineTo(3 + gl, 5); ctx.stroke();
         }
 
         ctx.restore();
@@ -3102,7 +3213,7 @@ function checkCollision() {
     for (let o of obstacles) {
         if (b.x < o.x + o.w && b.x + b.w > o.x && b.y < o.y + o.h && b.y + b.h > o.y) {
             if (activePowerups.dash > 0) {
-                o.dead = true;
+                matarGrupo(o);
                 createParticles(o.x + o.w / 2, o.y + o.h / 2, '#ffb300', { count: 18, speed: 5, life: 34 });
                 createParticles(o.x + o.w / 2, o.y + o.h / 2, '#ffffff', { count: 8, speed: 7, life: 20, size: 2 });
                 killSound();
@@ -3119,7 +3230,7 @@ function checkCollision() {
             if (activePowerups.shield > 0) {
                 // o escudo aguenta uma pancada e some
                 activePowerups.shield = 0;
-                o.dead = true;
+                matarGrupo(o);
                 createParticles(o.x + o.w / 2, o.y + o.h / 2, '#7fd8ff', { count: 20, speed: 5, life: 30 });
                 createFloatingText(dino.x, dino.y - 24, "ESCUDO QUEBROU!", "#7fd8ff");
                 hitSound();
@@ -3179,7 +3290,7 @@ function finishScoreboard() {
     const divisor = (sessionMode === 'ship' || gameMode === 'ship') ? 6 : 3;
     const bonus = Math.floor(finalScoreNum / divisor) + Math.min(runMaxCombo, 25) * 6;
     const xpGain = Math.floor(finalScoreNum / 10);
-    totalCoins += bonus;
+    ganharMoedas(bonus);
     playerXP += xpGain;
     const antesLevel = playerLevel;
     playerLevel = Math.floor(playerXP / 1000) + 1;
@@ -3265,7 +3376,7 @@ function checarDesafio() {
     if (desafioAtual.ler() >= desafioAtual.n) {
         localStorage.setItem(K('desafio_' + desafioAtual.chave), '1');
         desafioOk = true;
-        totalCoins += desafioAtual.premio;
+        ganharMoedas(desafioAtual.premio);
         playerXP += 150;
         playerLevel = Math.floor(playerXP / 1000) + 1;
         localStorage.setItem(K('xp'), playerXP);
@@ -4081,22 +4192,20 @@ function updatePrizes() {
             p.got = true;
             addCombo();
             if (p.kind === 'coin') {
-                totalCoins += COIN_SHIP; runCoins += COIN_SHIP; score += 8; prizeSound(false);
+                ganharMoedas(COIN_SHIP); runCoins += COIN_SHIP; score += 8; prizeSound(false);
                 createParticles(p.x, p.y, '#FFD700', { count: 6, speed: 2.4, life: 20, size: 2.4 });
                 createFloatingText(p.x - 10, p.y - 12, '+' + COIN_SHIP + ' 🪙', '#FFD700');
             } else if (p.kind === 'star') {
-                totalCoins += STAR_SHIP; runCoins += STAR_SHIP; score += 30; prizeSound(true);
+                ganharMoedas(STAR_SHIP); runCoins += STAR_SHIP; score += 30; prizeSound(true);
                 createParticles(p.x, p.y, '#ffe680', { count: 14, speed: 3.4, life: 28 });
                 createFloatingText(p.x - 18, p.y - 14, '+30 ⭐', '#ffe680');
             } else {
-                totalCoins += GEM_SHIP; runCoins += GEM_SHIP; score += 80; prizeSound(true);
+                ganharMoedas(GEM_SHIP); runCoins += GEM_SHIP; score += 80; prizeSound(true);
                 createParticles(p.x, p.y, '#7fd8ff', { count: 20, speed: 4.2, life: 34 });
                 createFloatingText(p.x - 24, p.y - 16, '+80 💎', '#7fd8ff');
                 flash = Math.max(flash, 0.2);
             }
             saveGameData();
-            if (totalCoins >= 100) unlockAchievement('collector');
-            if (totalCoins >= 1000) unlockAchievement('millionaire');
         }
     });
     prizes = prizes.filter(p => !p.got && p.x > -40);
@@ -4861,6 +4970,7 @@ function resetGame() {
     dino.jumping = false;
     dino.doubleJumped = false;
     dino.dying = false;
+    dino.ducking = false; dino.duck = 0;
     dino.rot = 0;
     dino.squash = 0;
     dino.trail = [];
